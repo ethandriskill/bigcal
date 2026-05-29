@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkiFree</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a3a5c;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// ─── Canvas Setup ───────────────────────────────────────────────────────────
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+const dpr = window.devicePixelRatio || 1;
+canvas.width  = W * dpr;
+canvas.height = H * dpr;
+canvas.style.width  = W + 'px';
+canvas.style.height = H + 'px';
+ctx.scale(dpr, dpr);
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+const SKIER_Y       = H * 0.38;
+const BASE_SPEED    = 130;
+const MAX_SPEED     = 650;
+const SPEED_RATE    = 9;       // world-units/sec added per second
+const MAX_VX        = 280;     // max horizontal skier speed
+const YETI_TRIGGER  = 2200;    // world units before yeti spawns
+
+const STATES = { START: 0, PLAYING: 1, DEAD: 2, GAMEOVER: 3 };
+const CAUSES = { CRASH: 0, EATEN: 1 };
+
+const RESTART_BTN = { x: W/2 - 80, y: H/2 + 80, w: 160, h: 40 };
+
+// ─── Shared Helpers ──────────────────────────────────────────────────────────
+function circleOverlap(ax, ay, ar, bx, by, br) {
+  const dx = ax - bx, dy = ay - by;
+  const r = ar + br;
+  return dx*dx + dy*dy < r*r;
+}
+
+function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+function fillCircle(x, y, r, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function fillRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+
+// ─── Game State ──────────────────────────────────────────────────────────────
+let gameState, worldY, worldSpeed, playTime, distance, highScore;
+let deathTimer, deathCause;
+let obstacles, snowFlakes;
+let keys = {}, mouseX = W/2, mouseMode = false;
+
+const skier = { x: 0, y: SKIER_Y, vx: 0, hitR: 11 };
+const yeti = {
+  x: 0, worldY: 0, vx: 0,
+  active: false, phase: 'chase',  // 'chase' | 'eating'
+  animFrame: 0, animTimer: 0,
+  hitR: 20, warning: 0
+};
+
+function resetGame() {
+  worldY    = 0;
+  worldSpeed = BASE_SPEED;
+  playTime  = 0;
+  distance  = 0;
+  deathTimer = 0;
+  deathCause = CAUSES.CRASH;
+
+  skier.x  = W / 2;
+  skier.vx = 0;
+
+  yeti.active    = false;
+  yeti.phase     = 'chase';
+  yeti.x         = W + 80;
+  yeti.worldY    = 0;
+  yeti.vx        = 0;
+  yeti.animFrame = 0;
+  yeti.animTimer = 0;
+  yeti.warning   = 0;
+
+  obstacles = [];
+  snowFlakes = Array.from({ length: 180 }, () => ({
+    x: Math.random() * W,
+    y: Math.random() * H,
+    r: Math.random() * 1.8 + 0.4,
+    speed: Math.random() * 0.4 + 0.2
+  }));
+
+  spawnObstacles();
+  gameState = STATES.PLAYING;
+}
+
+// ─── Obstacle Spawning ───────────────────────────────────────────────────────
+const OBS_CFG = {
+  tree:      { w: 28, h: 46, r: 13 },
+  rock:      { w: 24, h: 16, r: 11 },
+  mogul:     { w: 30, h: 14, r: 10 },
+  treestump: { w: 16, h: 20, r:  8 },
+  sign:      { w: 18, h: 36, r:  8 }
+};
+
+function spawnObstacles() {
+  // Cull off-screen obstacles (above and below)
+  obstacles = obstacles.filter(o => {
+    const sy = o.worldY - worldY + SKIER_Y;
+    return sy > -80 && o.worldY < worldY + H + 600;
+  });
+
+  const minOnScreen = 10 + Math.floor((worldSpeed - BASE_SPEED) / 60);
+  const ahead = obstacles.filter(o => o.worldY > worldY).length;
+  if (ahead >= minOnScreen) return;
+
+  const toSpawn = minOnScreen - ahead + Math.floor(Math.random() * 4);
+  for (let i = 0; i < toSpawn; i++) {
+    const roll = Math.random();
+    const type = roll < 0.45 ? 'tree'
+               : roll < 0.68 ? 'rock'
+               : roll < 0.82 ? 'mogul'
+               : roll < 0.93 ? 'treestump'
+               : 'sign';
+    const cfg = OBS_CFG[type];
+    const spawnY = worldY + H + 60 + Math.random() * 500;
+    const x = Math.random() * (W - 100) + 50;
+
+    const tooClose = obstacles.some(o =>
+      Math.abs(o.x - x) < 38 && Math.abs(o.worldY - spawnY) < 32
+    );
+    if (!tooClose) {
+      obstacles.push({ type, x, worldY: spawnY, w: cfg.w, h: cfg.h, r: cfg.r,
+        variant: Math.floor(Math.random() * 3) });
+    }
+  }
+}
+
+// ─── Update ──────────────────────────────────────────────────────────────────
+function update(dt) {
+  if (gameState === STATES.PLAYING) updatePlaying(dt);
+  else if (gameState === STATES.DEAD)  updateDead(dt);
+}
+
+function updatePlaying(dt) {
+  playTime   += dt;
+  worldSpeed  = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
+  worldY     += worldSpeed * dt;
+  distance    = Math.floor(worldY * 0.1);
+
+  // Horizontal input
+  let targetVx = 0;
+  if (mouseMode) {
+    const dx = mouseX - skier.x;
+    targetVx = clamp(dx / 90, -1, 1) * MAX_VX;
+  } else {
+    if (keys['ArrowLeft']  || keys['KeyA']) targetVx = -MAX_VX;
+    if (keys['ArrowRight'] || keys['KeyD']) targetVx =  MAX_VX;
+    if (keys['ArrowUp']    || keys['KeyW']) worldSpeed = Math.max(worldSpeed - 80*dt, BASE_SPEED * 0.6);
+    if (keys['ArrowDown']  || keys['KeyS']) worldSpeed = Math.min(worldSpeed + 60*dt, MAX_SPEED);
+  }
+
+  const accel = 700;
+  skier.vx = targetVx > skier.vx
+    ? Math.min(skier.vx + accel * dt, targetVx)
+    : Math.max(skier.vx - accel * dt, targetVx);
+
+  skier.x = clamp(skier.x + skier.vx * dt, 36, W - 36);
+
+  spawnObstacles();
+  updateYeti(dt);
+  checkCollisions();
+}
+
+function updateYeti(dt) {
+  if (!yeti.active) {
+    if (worldY > YETI_TRIGGER) {
+      yeti.active  = true;
+      yeti.x       = W + 80;
+      // Spawn below the visible area in world space
+      yeti.worldY  = worldY + (H - SKIER_Y) + 120;
+      yeti.warning = 180;
+    }
+    return;
+  }
+
+  yeti.warning = Math.max(0, yeti.warning - 1);
+
+  if (yeti.phase === 'eating') return;
+
+  const yetiSY = yeti.worldY - worldY + SKIER_Y;
+  const dx = skier.x - yeti.x;
+  const dy = SKIER_Y - yetiSY;   // screen-space vertical gap
+  const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+
+  // Yeti speed in world-units/sec — always slightly faster than player scroll so it eventually catches up
+  const yetiSpd = worldSpeed * 0.85 + 40;
+
+  // World-relative velocity: move toward skier in screen space
+  yeti.vx       = (dx / dist) * yetiSpd * 0.5;
+  // In world space, yeti needs to increase worldY at worldSpeed PLUS a catch-up component
+  const vyWorld = worldSpeed + (dy / dist) * yetiSpd * 0.5;
+  yeti.worldY  += vyWorld * dt;
+  yeti.x       += yeti.vx * dt;
+
+  yeti.animTimer += dt;
+  if (yeti.animTimer > 0.14) { yeti.animFrame++; yeti.animTimer = 0; }
+
+  // Yeti collision
+  const yetiSYnow = yeti.worldY - worldY + SKIER_Y;
+  if (circleOverlap(skier.x, SKIER_Y, skier.hitR, yeti.x, yetiSYnow, yeti.hitR)) {
+    yeti.phase  = 'eating';
+    deathCause  = CAUSES.EATEN;
+    gameState   = STATES.DEAD;
+    deathTimer  = 0;
+  }
+}
+
+function checkCollisions() {
+  for (const obs of obstacles) {
+    const sy = obs.worldY - worldY + SKIER_Y;
+    if (Math.abs(obs.x - skier.x) > 80 || Math.abs(sy - SKIER_Y) > 80) continue;
+    if (circleOverlap(skier.x, SKIER_Y + 6, skier.hitR, obs.x, sy - obs.h * 0.25, obs.r)) {
+      deathCause = CAUSES.CRASH;
+      gameState  = STATES.DEAD;
+      deathTimer = 0;
+      return;
+    }
+  }
+}
+
+function updateDead(dt) {
+  deathTimer += dt;
+  if (deathCause === CAUSES.CRASH && deathTimer > 2.2) {
+    gameState = STATES.GAMEOVER;
+    saveHighScore();
+  }
+  if (deathCause === CAUSES.EATEN && deathTimer > 1.8) {
+    gameState = STATES.GAMEOVER;
+    saveHighScore();
+  }
+  // Keep world scrolling slowly so crash site looks alive
+  if (deathCause === CAUSES.CRASH) {
+    worldY += 20 * dt;
+  }
+}
+
+// ─── High Score ───────────────────────────────────────────────────────────────
+function saveHighScore() {
+  try {
+    const prev = parseInt(localStorage.getItem('skifree_hs') || '0', 10);
+    if (distance > prev) localStorage.setItem('skifree_hs', distance);
+    highScore = Math.max(distance, prev);
+  } catch(e) { highScore = distance; }
+}
+
+function loadHighScore() {
+  try { highScore = parseInt(localStorage.getItem('skifree_hs') || '0', 10); }
+  catch(e) { highScore = 0; }
+}
+
+// ─── Draw Helpers ─────────────────────────────────────────────────────────────
+function drawText(text, x, y, size, color, align='center', shadow=true) {
+  ctx.font = `bold ${size}px monospace`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
+  if (shadow) {
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillText(text, x+2, y+2);
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+
+// ─── Background ──────────────────────────────────────────────────────────────
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#daf0fb');
+  grad.addColorStop(1, '#f5fbff');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Ski tracks
+  ctx.strokeStyle = 'rgba(160,200,230,0.5)';
+  ctx.lineWidth = 1.5;
+  const trackOffset = worldY % 60;
+  for (let y = -trackOffset; y < H + 60; y += 60) {
+    const lx = W/2 - 10;
+    const rx = W/2 + 10;
+    ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(lx, y + 40); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(rx, y + 40); ctx.stroke();
+  }
+
+  // Snow flakes (drift with world)
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const offset = worldY * 0.08 % H;
+  for (const f of snowFlakes) {
+    const fy = (f.y + offset) % H;
+    ctx.beginPath();
+    ctx.arc(f.x, fy, f.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// ─── Skier ───────────────────────────────────────────────────────────────────
+function drawSkier(x, y, vx, crashed, crashT) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  if (crashed) {
+    // Crash animation: spinning scattered pieces
+    const spin = crashT * 4;
+    const spread = Math.min(crashT * 80, 26);
+
+    // Scattered ski pieces
+    ctx.save();
+    ctx.rotate(spin);
+    ctx.strokeStyle = '#888'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-spread, -spread*0.5); ctx.lineTo(spread, spread*0.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(spread, -spread*0.5); ctx.lineTo(-spread, spread*0.5); ctx.stroke();
+    ctx.restore();
+
+    // Star burst
+    const alpha = Math.max(0, 1 - crashT * 1.2);
+    ctx.strokeStyle = `rgba(255,220,50,${alpha})`;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2;
+      const len = spread * 1.8;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 8, Math.sin(angle) * 8);
+      ctx.lineTo(Math.cos(angle) * len, Math.sin(angle) * len);
+      ctx.stroke();
+    }
+
+    // Body
+    fillCircle(0, -4, 8, '#d44');
+    ctx.restore();
+
+    // "OOF!" text
+    if (crashT < 0.9) {
+      const a = crashT < 0.4 ? crashT / 0.4 : 1 - (crashT - 0.4) / 0.5;
+      drawText('OOF!', x, y - 32 - crashT * 20, 18, `rgba(255,80,80,${Math.max(0,a)})`);
+    }
+    return;
+  }
+
+  // Normal skier
+  const angle = clamp(vx / MAX_VX, -1, 1);
+  const tilt  = angle * 0.5;  // body lean
+
+  ctx.rotate(tilt);
+
+  // Skis
+  const skiAngle = angle * 0.6;
+  ctx.save();
+  ctx.strokeStyle = '#222';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  // Left ski
+  ctx.save();
+  ctx.rotate(-skiAngle * 0.3);
+  ctx.beginPath(); ctx.moveTo(-9, 4); ctx.lineTo(-9, 20); ctx.stroke();
+  ctx.restore();
+  // Right ski
+  ctx.save();
+  ctx.rotate(skiAngle * 0.3);
+  ctx.beginPath(); ctx.moveTo(9, 4); ctx.lineTo(9, 20); ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+
+  // Poles
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(-12, -2); ctx.lineTo(-16, 14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(12, -2); ctx.lineTo(16, 14); ctx.stroke();
+
+  // Jacket (body)
+  ctx.fillStyle = '#1565c0';
+  ctx.beginPath();
+  ctx.ellipse(0, 4, 8, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  fillCircle(0, -8, 7, '#f5c5a0');
+
+  // Hat
+  ctx.fillStyle = '#c0392b';
+  ctx.beginPath();
+  ctx.ellipse(0, -13, 7, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(-5, -20, 10, 8);
+  fillCircle(0, -20, 3, '#c0392b');
+
+  // Eyes
+  fillCircle(-2.5, -9, 1.2, '#333');
+  fillCircle(2.5,  -9, 1.2, '#333');
+
+  ctx.restore();
+}
+
+// ─── Obstacles ───────────────────────────────────────────────────────────────
+function drawObstacle(obs) {
+  const sy = obs.worldY - worldY + SKIER_Y;
+  if (sy < -60 || sy > H + 60) return;
+  const x = obs.x;
+
+  ctx.save();
+  ctx.translate(x, sy);
+
+  switch (obs.type) {
+    case 'tree': drawTree(obs.variant); break;
+    case 'rock': drawRock(obs.variant); break;
+    case 'mogul': drawMogul(); break;
+    case 'treestump': drawTreeStump(); break;
+    case 'sign': drawSign(obs.variant); break;
+  }
+
+  ctx.restore();
+}
+
+function drawTree(variant) {
+  const scale = [0.8, 1.0, 1.3][variant];
+  const h = 46 * scale, tw = 16 * scale;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.beginPath();
+  ctx.ellipse(2, 2, tw * 0.9, 4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Trunk
+  fillRect(-3 * scale, 0, 6 * scale, 12 * scale, '#6b3a2a');
+
+  // Foliage layers (bottom to top)
+  ctx.fillStyle = '#1b5e20';
+  ctx.beginPath();
+  ctx.moveTo(-tw, 0);
+  ctx.lineTo(tw, 0);
+  ctx.lineTo(0, -h * 0.45);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#2e7d32';
+  const mid = -h * 0.35;
+  ctx.beginPath();
+  ctx.moveTo(-tw * 0.82, mid);
+  ctx.lineTo(tw * 0.82, mid);
+  ctx.lineTo(0, mid - h * 0.38);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#388e3c';
+  const top = -h * 0.62;
+  ctx.beginPath();
+  ctx.moveTo(-tw * 0.55, top);
+  ctx.lineTo(tw * 0.55, top);
+  ctx.lineTo(0, top - h * 0.32);
+  ctx.closePath();
+  ctx.fill();
+
+  // Snow on top
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath();
+  ctx.moveTo(-tw * 0.28, top);
+  ctx.lineTo(tw * 0.28, top);
+  ctx.lineTo(0, top - h * 0.32);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawRock(variant) {
+  const shapes = [
+    [[-12,0],[-10,-8],[0,-12],[10,-9],[12,-2],[8,4],[-6,4]],
+    [[-10,0],[-12,-5],[0,-10],[8,-8],[11,0],[6,5],[-4,5]],
+    [[-11,0],[-8,-9],[-2,-13],[9,-8],[13,0],[9,6],[-5,5]]
+  ];
+  const pts = shapes[variant];
+
+  ctx.fillStyle = '#546e7a';
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = '#78909c';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  ctx.lineTo(pts[1][0] + 2, pts[1][1] - 2);
+  ctx.lineTo(pts[2][0], pts[2][1]);
+  ctx.stroke();
+}
+
+function drawMogul() {
+  // Shadow first
+  ctx.fillStyle = 'rgba(100,140,170,0.25)';
+  ctx.beginPath(); ctx.ellipse(2, 3, 17, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.fillStyle = '#c8e6f5';
+  ctx.beginPath(); ctx.ellipse(0, 0, 16, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+  ctx.strokeStyle = 'rgba(150,200,230,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.ellipse(-2, -2, 9, 4, -0.3, 0, Math.PI * 2); ctx.stroke();
+}
+
+function drawTreeStump() {
+  fillRect(-5, -8, 10, 8, '#5d4037');  // stump top
+  fillRect(-6, 0,  12, 6, '#4e342e');  // base
+  // Cross-cut lines
+  ctx.strokeStyle = '#795548';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(-4, -8); ctx.lineTo(0, -12); ctx.lineTo(4, -8); ctx.stroke();
+}
+
+function drawSign(variant) {
+  const msgs = ['RUN!', '►200m', 'DANGER'];
+  const colors = ['#e53935', '#f57c00', '#fdd835'];
+
+  // Post
+  fillRect(-2, -6, 4, 20, '#8d6e63');
+
+  // Sign board
+  ctx.fillStyle = colors[variant];
+  ctx.fillRect(-14, -20, 28, 14);
+  ctx.strokeStyle = '#5d4037';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-14, -20, 28, 14);
+
+  ctx.font = 'bold 7px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#000';
+  ctx.fillText(msgs[variant], 0, -13);
+}
+
+// ─── Yeti ─────────────────────────────────────────────────────────────────────
+function drawYeti() {
+  if (!yeti.active) return;
+  const sy = yeti.worldY - worldY + SKIER_Y;
+  if (sy < -80 || sy > H + 80) return;
+
+  ctx.save();
+  ctx.translate(yeti.x, sy);
+
+  const frame = yeti.animFrame % 2;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.beginPath(); ctx.ellipse(0, 24, 18, 7, 0, 0, Math.PI*2); ctx.fill();
+
+  // Body
+  ctx.fillStyle = '#eceff1';
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 16, 22, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = '#b0bec5';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Arms (alternating)
+  ctx.strokeStyle = '#eceff1';
+  ctx.lineWidth = 7;
+  ctx.lineCap = 'round';
+  if (frame === 0) {
+    ctx.beginPath(); ctx.moveTo(-16, -2); ctx.quadraticCurveTo(-28, 0, -24, 10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, 0);  ctx.quadraticCurveTo(28, -4, 22, 10);  ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-16, 0);  ctx.quadraticCurveTo(-26, -6, -20, 10); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, -2); ctx.quadraticCurveTo(30, 2, 24, 10);   ctx.stroke();
+  }
+
+  // Legs
+  ctx.strokeStyle = '#cfd8dc';
+  ctx.lineWidth = 8;
+  if (frame === 0) {
+    ctx.beginPath(); ctx.moveTo(-8, 26); ctx.lineTo(-10, 42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8, 26);  ctx.lineTo(12, 38); ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.moveTo(-8, 26); ctx.lineTo(-12, 38); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(8, 26);  ctx.lineTo(10, 42); ctx.stroke();
+  }
+
+  // Head
+  fillCircle(0, -18, 16, '#eceff1');
+  ctx.strokeStyle = '#b0bec5';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(0, -18, 16, 0, Math.PI*2); ctx.stroke();
+
+  // Eyes
+  fillCircle(-6, -21, 3, '#212121');
+  fillCircle(6,  -21, 3, '#212121');
+  fillCircle(-5, -22, 1.2, '#fff');
+  fillCircle(7,  -22, 1.2, '#fff');
+
+  // Mouth
+  ctx.strokeStyle = '#f44336';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  if (yeti.phase === 'eating') {
+    // Big open mouth
+    ctx.fillStyle = '#b71c1c';
+    ctx.beginPath(); ctx.arc(0, -14, 9, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#fff';
+    for (let i = -2; i <= 2; i++) {
+      ctx.fillRect(i*3.5 - 1.5, -14, 3, 5);
+    }
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, -13, 6, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+  }
+
+  // Fur tufts
+  ctx.fillStyle = '#f5f5f5';
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath(); ctx.arc(i*6, -33, 3, 0, Math.PI*2); ctx.fill();
+  }
+
+  ctx.restore();
+
+  // Warning flash
+  if (yeti.warning > 0 && Math.floor(yeti.warning / 15) % 2 === 0) {
+    drawText('⚠ YETI APPROACHING! ⚠', W/2, 80, 18, '#ff1744');
+  }
+}
+
+// ─── HUD ─────────────────────────────────────────────────────────────────────
+function drawHUD() {
+  // Top bar
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(0, 0, W, 28);
+
+  drawText(`DISTANCE: ${distance}m`, 12, 14, 14, '#fff', 'left', false);
+
+  const spd = Math.round((worldSpeed / BASE_SPEED - 1) * 100);
+  drawText(`SPEED: +${spd}%`, W - 12, 14, 14, '#fff', 'right', false);
+
+  if (highScore > 0) {
+    drawText(`BEST: ${highScore}m`, W/2, 14, 13, '#ffe082', 'center', false);
+  }
+}
+
+// ─── Screens ─────────────────────────────────────────────────────────────────
+function drawStartScreen() {
+  ctx.fillStyle = 'rgba(10,30,60,0.72)';
+  ctx.fillRect(0, 0, W, H);
+
+  // Title
+  ctx.save();
+  ctx.font = 'bold 72px Impact, fantasy';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#1565c0';
+  ctx.fillText('SkiFree', W/2 + 3, H/2 - 100 + 3);
+  ctx.fillStyle = '#e3f2fd';
+  ctx.fillText('SkiFree', W/2, H/2 - 100);
+  ctx.restore();
+
+  drawText('The classic mountain adventure', W/2, H/2 - 42, 16, '#90caf9');
+  drawText('Press any key or click to start', W/2, H/2 + 10, 18, '#fff');
+
+  drawText('Controls:', W/2, H/2 + 60, 14, '#b0bec5');
+  drawText('← → or A/D  — steer left/right', W/2, H/2 + 82, 13, '#cfd8dc');
+  drawText('↑/W  — brake    ↓/S  — speed up', W/2, H/2 + 100, 13, '#cfd8dc');
+  drawText('or move mouse to steer', W/2, H/2 + 118, 13, '#cfd8dc');
+
+  if (highScore > 0) {
+    drawText(`Best distance: ${highScore}m`, W/2, H/2 + 148, 15, '#ffe082');
+  }
+}
+
+function drawGameOverScreen() {
+  ctx.fillStyle = 'rgba(10,10,30,0.78)';
+  ctx.fillRect(0, 0, W, H);
+
+  const title = deathCause === CAUSES.EATEN ? 'YOU WERE EATEN!' : 'GAME OVER';
+  const color = deathCause === CAUSES.EATEN ? '#ff5252' : '#ef9a9a';
+  drawText(title, W/2, H/2 - 80, 40, color);
+
+  drawText(`Distance: ${distance}m`, W/2, H/2 - 20, 22, '#fff');
+  if (highScore >= distance && highScore > 0) {
+    drawText(`Best: ${highScore}m`, W/2, H/2 + 14, 16, '#ffe082');
+  } else if (distance > 0) {
+    drawText('NEW BEST!', W/2, H/2 + 14, 18, '#69f0ae');
+  }
+
+  // Restart button
+  const b = RESTART_BTN;
+  ctx.fillStyle = '#1565c0';
+  ctx.beginPath();
+  const r8 = 8;
+  ctx.moveTo(b.x + r8, b.y);
+  ctx.lineTo(b.x + b.w - r8, b.y);
+  ctx.arcTo(b.x + b.w, b.y, b.x + b.w, b.y + r8, r8);
+  ctx.lineTo(b.x + b.w, b.y + b.h - r8);
+  ctx.arcTo(b.x + b.w, b.y + b.h, b.x + b.w - r8, b.y + b.h, r8);
+  ctx.lineTo(b.x + r8, b.y + b.h);
+  ctx.arcTo(b.x, b.y + b.h, b.x, b.y + b.h - r8, r8);
+  ctx.lineTo(b.x, b.y + r8);
+  ctx.arcTo(b.x, b.y, b.x + r8, b.y, r8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#42a5f5';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  drawText('RESTART  (R)', W/2, b.y + b.h/2, 16, '#fff');
+
+  drawText('Press R or click RESTART', W/2, b.y + b.h + 22, 13, '#90a4ae');
+}
+
+// ─── Main Draw ───────────────────────────────────────────────────────────────
+function draw() {
+  drawBackground();
+
+  // Sort obstacles back-to-front (higher worldY = further down slope = drawn later)
+  const sorted = [...obstacles].sort((a, b) => a.worldY - b.worldY);
+  for (const obs of sorted) drawObstacle(obs);
+
+  drawYeti();
+
+  // Skier
+  const crashed = gameState === STATES.DEAD && deathCause === CAUSES.CRASH;
+  drawSkier(skier.x, SKIER_Y, skier.vx, crashed, crashed ? deathTimer : 0);
+
+  drawHUD();
+
+  if (gameState === STATES.START)    drawStartScreen();
+  if (gameState === STATES.GAMEOVER) drawGameOverScreen();
+
+  // Eaten overlay
+  if (gameState === STATES.DEAD && deathCause === CAUSES.EATEN) {
+    const a = Math.min(deathTimer / 0.4, 0.6);
+    ctx.fillStyle = `rgba(180,0,0,${a})`;
+    ctx.fillRect(0, 0, W, H);
+    if (deathTimer > 0.5) {
+      drawText('CHOMP!', W/2, H/2, 52, `rgba(255,255,255,${Math.min((deathTimer-0.5)*3,1)})`);
+    }
+  }
+}
+
+// ─── Game Loop ────────────────────────────────────────────────────────────────
+let lastTime = -1;
+
+function loop(now) {
+  const dt = lastTime < 0 ? 0 : Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
+  if (gameState === STATES.START) {
+    // Attract mode: slow idle scroll
+    worldY += 90 * dt;
+    spawnObstacles();
+  } else if (gameState !== STATES.GAMEOVER) {
+    update(dt);
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ─── Input ────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+
+  const steerKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyA','KeyD','KeyW','KeyS','Space'];
+  if (steerKeys.includes(e.code)) {
+    e.preventDefault();
+    mouseMode = false;  // keyboard takes over from mouse steering
+  }
+
+  if (gameState === STATES.START) {
+    loadHighScore();
+    resetGame();
+  } else if (gameState === STATES.GAMEOVER && e.code === 'KeyR') {
+    loadHighScore();
+    resetGame();
+  }
+});
+
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) * (W / rect.width);
+  mouseMode = true;
+});
+
+canvas.addEventListener('mouseleave', () => { mouseMode = false; });
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (gameState === STATES.START) { loadHighScore(); resetGame(); return; }
+  if (gameState === STATES.GAMEOVER) { loadHighScore(); resetGame(); return; }
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.touches[0].clientX - rect.left) * (W / rect.width);
+  mouseMode = true;
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.touches[0].clientX - rect.left) * (W / rect.width);
+  mouseMode = true;
+}, { passive: false });
+
+canvas.addEventListener('touchend', () => { mouseMode = false; });
+
+canvas.addEventListener('click', e => {
+  if (gameState === STATES.START) {
+    loadHighScore();
+    resetGame();
+    return;
+  }
+  if (gameState === STATES.GAMEOVER) {
+    const rect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - rect.left) * (W / rect.width);
+    const cy = (e.clientY - rect.top)  * (H / rect.height);
+    const b  = RESTART_BTN;
+    if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
+      loadHighScore();
+      resetGame();
+    }
+  }
+});
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadHighScore();
+gameState = STATES.START;
+// Idle scrolling for attract mode
+worldY = 0;
+worldSpeed = BASE_SPEED;
+obstacles = [];
+snowFlakes = Array.from({ length: 180 }, () => ({
+  x: Math.random() * W,
+  y: Math.random() * H,
+  r: Math.random() * 1.8 + 0.4,
+  speed: Math.random() * 0.4 + 0.2
+}));
+spawnObstacles();
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
