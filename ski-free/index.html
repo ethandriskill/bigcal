@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      background: radial-gradient(ellipse at 50% 30%, #2c5f8a 0%, #16324f 70%);
+      background: #008080; /* classic 90s desktop teal */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -16,8 +16,8 @@
     }
     canvas {
       display: block;
-      border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 4px rgba(255,255,255,0.08);
+      border: 4px outset #c0c0c0;
+      image-rendering: pixelated;
     }
   </style>
 </head>
@@ -35,144 +35,475 @@ canvas.style.width  = W + 'px';
 canvas.style.height = H + 'px';
 ctx.scale(dpr, dpr);
 
-const FONT = "'Arial Rounded MT Bold','Trebuchet MS','Segoe UI',sans-serif";
+const FONT = "'Courier New', Courier, monospace";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-const SKIER_Y       = H * 0.38;
-const BASE_SPEED    = 130;
-const MAX_SPEED     = 650;
-const SPEED_RATE    = 9;       // world-units/sec added per second
-const MAX_VX        = 280;     // max horizontal skier speed
-const YETI_TRIGGER  = 2200;    // world units before yeti spawns
+const SKIER_Y      = H * 0.38;
+const BASE_SPEED   = 130;
+const MAX_SPEED    = 650;
+const SPEED_RATE   = 9;
+const MAX_VX       = 280;
+const LIFT_X       = 726;
 
-const STATES = { START: 0, PLAYING: 1, DEAD: 2, GAMEOVER: 3 };
-const CAUSES = { CRASH: 0, EATEN: 1 };
+const STATES = { START: 0, PLAYING: 1, CRASHED: 2, CAPTURED: 3, GAMEOVER: 4 };
 
-const RESTART_BTN = { x: W/2 - 100, y: H/2 + 92, w: 200, h: 52 };
+const RESTART_BTN = { x: W/2 - 62, y: H/2 + 56, w: 124, h: 34 };
 
-// ─── Shared Helpers ──────────────────────────────────────────────────────────
+// ─── 16-color palette ─────────────────────────────────────────────────────────
+const PAL = {
+  K: '#000000', W: '#ffffff', G: '#c0c0c0', D: '#808080', S: '#404040',
+  R: '#ff0000', r: '#900000', Y: '#ffff00', y: '#b0a000', O: '#ff8000',
+  B: '#0000e0', b: '#0080ff', C: '#00e8e8', P: '#e000e0', p: '#800080',
+  F: '#ffcc99', N: '#00a800', L: '#00e800', n: '#006000',
+  T: '#a05a2c', t: '#6b3a18'
+};
+
+// Draw a pixel sprite anchored at bottom-center of (x, y)
+function sprite(grid, x, y, s, flip=false) {
+  const h = grid.length;
+  let w = 0;
+  for (const row of grid) if (row.length > w) w = row.length;
+  const ox = Math.round(x - (w * s) / 2);
+  const oy = Math.round(y - h * s);
+  for (let rI = 0; rI < h; rI++) {
+    const row = grid[rI];
+    for (let c = 0; c < w; c++) {
+      const ch = row[flip ? w - 1 - c : c];
+      if (!ch || ch === '.') continue;
+      ctx.fillStyle = PAL[ch];
+      ctx.fillRect(ox + c * s, oy + rI * s, s, s);
+    }
+  }
+}
+
+// ─── Sprites ──────────────────────────────────────────────────────────────────
+const SKIER_DOWN = [
+  '..WW........',
+  '...RRRR.....',
+  '....RRR.....',
+  '....FFFF....',
+  '....FFFF....',
+  '...PPPPPP...',
+  '..PPPPPPPP..',
+  '.K.PPPPPP.K.',
+  '.K.PPPPPP.K.',
+  '.K..PPPP..K.',
+  '.K..BBBB..K.',
+  '.K..BBBB..K.',
+  '....B..B....',
+  '....B..B....',
+  '...bb..bb...',
+  '...bb..bb...',
+  '...bb..bb...'
+];
+
+const SKIER_TURN = [   // facing left; flip for right
+  '.......WW....',
+  '.....RRRR....',
+  '......RRR....',
+  '.....FFFF....',
+  '.....FFFF....',
+  '....PPPPPP...',
+  '...PPPPPPPP..',
+  '...PPPPPPPP..',
+  '..K.PPPPPP.K.',
+  '..K..PPPP..K.',
+  '..K..BBBB..K.',
+  '.....BBBB....',
+  '.....BB......',
+  '....bbb......',
+  '...bbb.......',
+  '..bbb........',
+  '.bbb.........'
+];
+
+const SKIER_CRASH = [
+  '.....WW..R....',
+  '........RRR...',
+  '....FFFF.RR...',
+  '....FFFF......',
+  '...PPPPPP.....',
+  '..PPPPPPPP....',
+  '.bb.PPPP..bb..',
+  '..bb.BB..bb...',
+  '...bbbBbbb....',
+  '....bbbbb.....',
+  '...bb...bb....',
+  '..bb.....bb...'
+];
+
+const TREE_BUSHY = [
+  '......N......',
+  '.....NNN.....',
+  '....NNLNN....',
+  '...NNNNNNN...',
+  '....NLNNB....',
+  '...NNNNNNN...',
+  '..NNBNNLNNN..',
+  '.NNNNNNNNNYN.',
+  '..NNLNNNNNN..',
+  '.NNNNNBNNLNN.',
+  'NNYNNNNNNNNNN',
+  '.NNNNLNNNBNN.',
+  'NNNNNNNNNNNYN',
+  '.....TTT.....',
+  '.....TTT.....',
+  '....yyyyy....'
+];
+
+const TREE_PINE = [
+  '......n......',
+  '.....nnn.....',
+  '....n.n.n....',
+  '...n.nnn.n...',
+  '.....nnn.....',
+  '....nnnnn....',
+  '...n.nnn.n...',
+  '..n..nnn..n..',
+  '....nnnnn....',
+  '...nnnnnnn...',
+  '..n..nnn..n..',
+  '.n...nnn...n.',
+  '..nnnnnnnnn..',
+  '.nnnnnnnnnnn.',
+  'n....nnn....n',
+  '.....ttt.....',
+  '.....ttt.....'
+];
+
+const ROCK = [
+  '...DDDDD....',
+  '..DGGGGDD...',
+  '.DGGDGGGGD..',
+  'DGGGGGGDGGD.',
+  'DGDGGGGGGGD.',
+  '.DGGGGDGGD..',
+  '..DDDDDDD...'
+];
+
+const STUMP = [
+  '.TTTTTT.',
+  'TTttttTT',
+  '.TttttT.',
+  '.TttttT.',
+  '.TTTTTT.'
+];
+
+const SIGN_L = [
+  'RRRRRRRRR.',
+  'RRRWRRRRR.',
+  'RRWWWWWWR.',
+  'RWWWWWWWR.',
+  'RRWWWWWWR.',
+  'RRRWRRRRR.',
+  'RRRRRRRRR.',
+  '....KK....',
+  '....KK....',
+  '....KK....',
+  '....KK....'
+];
+
+const SIGN_R = [
+  'BBBBBBBBB.',
+  'BBBBBWBBB.',
+  'BWWWWWWBB.',
+  'BWWWWWWWB.',
+  'BWWWWWWBB.',
+  'BBBBBWBBB.',
+  'BBBBBBBBB.',
+  '....KK....',
+  '....KK....',
+  '....KK....',
+  '....KK....'
+];
+
+const FLAG_R = [
+  'K........',
+  'KRRRRR...',
+  'KRRRR....',
+  'KRRR.....',
+  'KRR......',
+  'K........',
+  'K........',
+  'K........',
+  'K........',
+  'K........'
+];
+
+const FLAG_B = FLAG_R.map(r => r.replace(/R/g, 'B'));
+
+const JUMP_RAMP = [
+  '............YY..',
+  '.........YYYYY..',
+  '......YYYYYYYY..',
+  '...YYYYYYYYYYY..',
+  'YYYYYYYYYYYYYY..',
+  'TTTTTTTTTTTTTT..',
+  'KKKKKKKKKKKKKK..'
+];
+
+const DOG_1 = [
+  '..........KK',
+  '.K.......KKK',
+  '..KTTTTTTTK.',
+  '...TTTTTTT..',
+  '...TTTTTTT..',
+  '...T..T..T..',
+  '...T..T...T.',
+  '..KK..KK..K.'
+];
+const DOG_2 = [
+  '..........KK',
+  '.K.......KKK',
+  '..KTTTTTTTK.',
+  '...TTTTTTT..',
+  '...TTTTTTT..',
+  '...T..T..T..',
+  '..T...T..T..',
+  '.KK..KK..KK.'
+];
+
+// ─── Monster sprites ──────────────────────────────────────────────────────────
+const YETI_1 = [
+  '..KK.........KK..',
+  '.K.............K.',
+  '.K..KKKKKKKK..K..',
+  '....KDDDDDDK.....',
+  '....KDRDDRDK.....',
+  '....KDDDDDDK.....',
+  '....KDWWWWDK.....',
+  '....KKDDDDKK.....',
+  '.....GGGGGG......',
+  '....GGGGGGGG.....',
+  '...GGGWWWWGGG....',
+  '...GGWWWWWWGG....',
+  '..GGGWWWWWWGGG...',
+  '..GGGWWWWWWGGG...',
+  '..GGGWWWWWWGGG...',
+  '...GGWWWWWWGG....',
+  '...GGGWWWWGGG....',
+  '....GGGGGGGG.....',
+  '.....GGGGGG......',
+  '.....K....K......',
+  '....K......K.....',
+  '...KK......KK....'
+];
+const YETI_2 = YETI_1.slice(0, 19).concat([
+  '.....K....K......',
+  '.....K.....K.....',
+  '....KK.....KK....'
+]);
+
+const UFO_1 = [
+  '.......KKKKKK.......',
+  '.....KKCCCCCCKK.....',
+  '....KCCCCCCCCCCK....',
+  '...KCCCCCCCCCCCCK...',
+  '.KKKKKKKKKKKKKKKKKK.',
+  'KGGGGGGGGGGGGGGGGGGK',
+  'KGYGGYGGYGGYGGYGGYGK',
+  'KGGGGGGGGGGGGGGGGGGK',
+  '.KKKKKKKKKKKKKKKKKK.',
+  '....K....K....K.....',
+  '...KK...KK...KK.....'
+];
+const UFO_2 = UFO_1.map(r => r.replace(/Y/g, 'R'));
+
+const DRAGON_1 = [   // wings up, facing left
+  '........NNN..........',
+  '........NNNN.........',
+  '.......NNNNNN........',
+  '.......NNNNNNN.......',
+  '......NNNNNNNNN......',
+  '.NN...NNNNNNNNNN.....',
+  'NNNN.NNNNNNNNNNNNN...',
+  'NKNNNNNNNNNNNNNNNNNN.',
+  'NNNNNNNNNNNNNNNNN.NNN',
+  'RRRNNNNNNNNNNNNN...NN',
+  '.WWNNNNNNNNNNNN......',
+  '..NNNNNNNNNNNN.......',
+  '....NN....NN.........',
+  '...KKK...KKK.........'
+];
+const DRAGON_2 = [   // wings down
+  '.....................',
+  '.....................',
+  '.....................',
+  '.....................',
+  '.....................',
+  '.NN......NNNN........',
+  'NNNN.NNNNNNNNNNNNN...',
+  'NKNNNNNNNNNNNNNNNNNN.',
+  'NNNNNNNNNNNNNNNNN.NNN',
+  'RRRNNNNNNNNNNNNN...NN',
+  '.WWNNNNNNNNNNNN......',
+  '..NNNNNNNNNNNNNN.....',
+  '....NN....NN..NNN....',
+  '...KKK...KKK.........'
+];
+
+const DINO_1 = [   // t-rex facing left
+  '..NNNNNN..........',
+  '.NNNNNNNN.........',
+  '.NKNNNNNN.........',
+  '.NNNNNNNN.........',
+  '.NRRRRRNN.........',
+  '.NWNWNWNN.........',
+  '..NNNNNNNN....N...',
+  '...NNNNNNNN..NNN..',
+  '....NNNNNNNNNNNN..',
+  '....NN.NNNNNNNNNN.',
+  '.......NNNNNNNNNNN',
+  '.....NNNNNNNN.....',
+  '.....NN...NN......',
+  '.....NN...NN......',
+  '....KKK..KKK......'
+];
+const DINO_2 = DINO_1.slice(0, 12).concat([
+  '.....NN....NN.....',
+  '.....NN....NN.....',
+  '....KKK...KKK.....'
+]);
+
+const BISON_1 = [   // facing left
+  '.....TTTTTT.......',
+  '...TTTTTTTTTTT....',
+  '..WTTTTTTTTTTTTT..',
+  '.WtttTTTTTTTTTTTT.',
+  '.KtttTTTTTTTTTTTT.',
+  '..ttttTTTTTTTTTT..',
+  '..tttt.TTTTTTTTT..',
+  '...tt...TT....TT..',
+  '...tt...TT....TT..',
+  '..KK....KK...KK...'
+];
+const BISON_2 = BISON_1.slice(0, 7).concat([
+  '...tt...TT....TT..',
+  '..tt....TT....TT..',
+  '.KK....KK.....KK..'
+]);
+
+// ─── Monster definitions ──────────────────────────────────────────────────────
+const MON_DEFS = {
+  yeti:   { grids: [YETI_1, YETI_2],     scale: 3, hitR: 24, spd: 0.85,
+            msg: 'The Snow Monster got you!' },
+  ufo:    { grids: [UFO_1, UFO_2],       scale: 3, hitR: 26, spd: 0.95,
+            msg: 'Abducted by a UFO!' },
+  dragon: { grids: [DRAGON_1, DRAGON_2], scale: 3, hitR: 26, spd: 0.90,
+            msg: 'Carried off by a dragon!' },
+  dino:   { grids: [DINO_1, DINO_2],     scale: 3, hitR: 25, spd: 0.85,
+            msg: 'Eaten by a dinosaur!' },
+  bison:  { grids: [BISON_1, BISON_2],   scale: 3, hitR: 24, spd: 0.92,
+            msg: 'Flipped sky-high by a bison!' }
+};
+const MON_TYPES = Object.keys(MON_DEFS);
+
+const CRASH_MSGS = {
+  tree: 'You hit a tree!', pine: 'You hit a tree!', rock: 'You hit a rock!',
+  stump: 'You hit a tree stump!', sign: 'You hit a sign!',
+  tower: 'You hit a lift tower!'
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function circleOverlap(ax, ay, ar, bx, by, br) {
   const dx = ax - bx, dy = ay - by;
   const r = ar + br;
   return dx*dx + dy*dy < r*r;
 }
-
 function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
 
-function fillCircle(x, y, r, color) {
+function drawText(text, x, y, size, color, align='center', weight='bold') {
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  ctx.textAlign = align;
+  ctx.textBaseline = 'middle';
   ctx.fillStyle = color;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI*2);
-  ctx.fill();
+  ctx.fillText(text, x, y);
 }
 
-// Rounded-rect path (arcTo based — works everywhere)
-function rr(x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
-}
-
-// Soft elliptical ground shadow
-function groundShadow(x, y, rx, ry, alpha) {
-  const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
-  g.addColorStop(0, `rgba(70,110,160,${alpha})`);
-  g.addColorStop(1, 'rgba(70,110,160,0)');
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(1, ry / rx);
-  ctx.translate(-x, -y);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, rx, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+// Windows 3.1-style beveled panel
+function bevel(x, y, w, h, sunken=false) {
+  ctx.fillStyle = '#c0c0c0';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = sunken ? '#404040' : '#ffffff';
+  ctx.fillRect(x, y, w, 2);
+  ctx.fillRect(x, y, 2, h);
+  ctx.fillStyle = sunken ? '#ffffff' : '#404040';
+  ctx.fillRect(x, y + h - 2, w, 2);
+  ctx.fillRect(x + w - 2, y, 2, h);
 }
 
 // ─── Game State ──────────────────────────────────────────────────────────────
 let gameState, worldY, worldSpeed, playTime, distance, highScore;
-let deathTimer, deathCause;
-let obstacles, snowFlakes, fgFlakes, snowPatches;
-let particles = [], trail = [];
-let shake = 0;
+let deathTimer, endMsg;
+let obstacles, bumps, dogs;
+let trail = [];
 let keys = {}, mouseX = W/2, mouseMode = false;
 let globalTime = 0;
+let nextMonsterAt = 0;
+let liftDist = 0;
 
-const skier = { x: 0, y: SKIER_Y, vx: 0, hitR: 11 };
-const yeti = {
-  x: 0, worldY: 0, vx: 0,
-  active: false, phase: 'chase',  // 'chase' | 'eating'
-  animFrame: 0, animTimer: 0,
-  hitR: 20, warning: 0
+const skier = {
+  x: 0, vx: 0, hitR: 11,
+  airT: 0, airE: 0, airPeak: 0   // airborne jump state
 };
 
-function makeFlakes() {
-  snowFlakes = Array.from({ length: 140 }, () => ({
-    x: Math.random() * W,
-    y: Math.random() * H,
-    r: Math.random() * 1.6 + 0.4
-  }));
-  fgFlakes = Array.from({ length: 45 }, () => ({
-    x: Math.random() * W,
-    y: Math.random() * H,
-    r: Math.random() * 2.6 + 1.6,
-    sway: Math.random() * Math.PI * 2,
-    spd: Math.random() * 30 + 25
-  }));
-  snowPatches = Array.from({ length: 14 }, () => ({
-    x: Math.random() * W,
-    wy: Math.random() * 1400,
-    rx: Math.random() * 90 + 50,
-    ry: Math.random() * 22 + 12
-  }));
-}
+const monster = {
+  type: 'yeti', active: false,
+  x: 0, worldY: 0, sy: 0,        // sy used during capture (screen space)
+  vx: 0, phase: 'chase',         // chase | flee | grab | exit
+  t: 0, patience: 0,
+  animFrame: 0, animTimer: 0,
+  exitVX: 0, exitVY: 0, dir: 1
+};
+
+// Captured-skier pose (screen space) during the capture playout
+const cap = { x: 0, y: 0, rot: 0, visible: true, vy: 0 };
 
 function resetGame() {
-  worldY    = 0;
-  worldSpeed = BASE_SPEED;
-  playTime  = 0;
-  distance  = 0;
-  deathTimer = 0;
-  deathCause = CAUSES.CRASH;
-
-  skier.x  = W / 2;
-  skier.vx = 0;
-
-  yeti.active    = false;
-  yeti.phase     = 'chase';
-  yeti.x         = W + 80;
-  yeti.worldY    = 0;
-  yeti.vx        = 0;
-  yeti.animFrame = 0;
-  yeti.animTimer = 0;
-  yeti.warning   = 0;
-
-  obstacles = [];
-  particles = [];
-  trail = [];
-  shake = 0;
-  makeFlakes();
-
+  worldY = 0; worldSpeed = BASE_SPEED;
+  playTime = 0; distance = 0;
+  deathTimer = 0; endMsg = '';
+  skier.x = W / 2; skier.vx = 0;
+  skier.airT = 0; skier.airE = 0; skier.airPeak = 0;
+  monster.active = false;
+  monster.phase = 'chase';
+  nextMonsterAt = 1600 + Math.random() * 1200;
+  obstacles = []; dogs = []; trail = [];
+  liftDist = 0;
+  makeBumps();
   spawnObstacles();
   gameState = STATES.PLAYING;
 }
 
+function makeBumps() {
+  bumps = Array.from({ length: 22 }, () => ({
+    x: Math.random() * W,
+    wy: Math.random() * 2000
+  }));
+}
+
 // ─── Obstacle Spawning ───────────────────────────────────────────────────────
+// ch = collision-circle vertical offset above baseline, r = radius, deco = no collide
 const OBS_CFG = {
-  tree:      { w: 28, h: 46, r: 13 },
-  rock:      { w: 24, h: 16, r: 11 },
-  mogul:     { w: 30, h: 14, r: 10 },
-  treestump: { w: 16, h: 20, r:  8 },
-  sign:      { w: 18, h: 36, r:  8 }
+  tree:  { r: 12, ch: 12, weight: 0.26 },
+  pine:  { r: 11, ch: 14, weight: 0.12 },
+  rock:  { r: 11, ch: 6,  weight: 0.14 },
+  stump: { r: 8,  ch: 5,  weight: 0.07 },
+  sign:  { r: 8,  ch: 10, weight: 0.06 },
+  flag:  { r: 0,  ch: 0,  weight: 0.09, deco: true },
+  jump:  { r: 13, ch: 5,  weight: 0.11, ramp: true },
+  mogul: { r: 11, ch: 3,  weight: 0.15, mogul: true }
 };
+const OBS_TYPES = Object.keys(OBS_CFG);
+
+function pickObstacleType() {
+  let roll = Math.random(), acc = 0;
+  for (const t of OBS_TYPES) {
+    acc += OBS_CFG[t].weight;
+    if (roll < acc) return t;
+  }
+  return 'tree';
+}
 
 function spawnObstacles() {
   obstacles = obstacles.filter(o => {
@@ -180,93 +511,54 @@ function spawnObstacles() {
     return sy > -80 && o.worldY < worldY + H + 600;
   });
 
-  const minOnScreen = 10 + Math.floor((worldSpeed - BASE_SPEED) / 60);
+  const minOnScreen = 11 + Math.floor((worldSpeed - BASE_SPEED) / 60);
   const ahead = obstacles.filter(o => o.worldY > worldY).length;
   if (ahead >= minOnScreen) return;
 
   const toSpawn = minOnScreen - ahead + Math.floor(Math.random() * 4);
   for (let i = 0; i < toSpawn; i++) {
-    const roll = Math.random();
-    const type = roll < 0.45 ? 'tree'
-               : roll < 0.68 ? 'rock'
-               : roll < 0.82 ? 'mogul'
-               : roll < 0.93 ? 'treestump'
-               : 'sign';
-    const cfg = OBS_CFG[type];
+    const type = pickObstacleType();
     const spawnY = worldY + H + 60 + Math.random() * 500;
-    const x = Math.random() * (W - 100) + 50;
-
+    const x = Math.random() * (W - 120) + 40;
     const tooClose = obstacles.some(o =>
-      Math.abs(o.x - x) < 38 && Math.abs(o.worldY - spawnY) < 32
+      Math.abs(o.x - x) < 40 && Math.abs(o.worldY - spawnY) < 34
     );
     if (!tooClose) {
-      obstacles.push({ type, x, worldY: spawnY, w: cfg.w, h: cfg.h, r: cfg.r,
-        variant: Math.floor(Math.random() * 3) });
+      obstacles.push({ type, x, worldY: spawnY,
+        variant: Math.random() < 0.5 ? 0 : 1 });
     }
   }
 }
 
-// ─── Particles ───────────────────────────────────────────────────────────────
-function spawnSpray(x, y, dir, amount) {
-  for (let i = 0; i < amount; i++) {
-    particles.push({
-      x: x + (Math.random() - 0.5) * 8,
-      y: y + (Math.random() - 0.5) * 4,
-      vx: dir * (Math.random() * 60 + 20) + (Math.random() - 0.5) * 30,
-      vy: -(Math.random() * 60 + 40),
-      r: Math.random() * 2.5 + 1.2,
-      life: 1,
-      decay: Math.random() * 2.5 + 2
+function spawnDogMaybe(dt) {
+  if (Math.random() < dt * 0.06 && dogs.length < 2) {
+    const fromLeft = Math.random() < 0.5;
+    dogs.push({
+      x: fromLeft ? -20 : W + 20,
+      wy: worldY + H * (0.5 + Math.random() * 0.5),
+      dir: fromLeft ? 1 : -1,
+      woofT: 0
     });
   }
-}
-
-function spawnBurst(x, y, count) {
-  for (let i = 0; i < count; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = Math.random() * 160 + 40;
-    particles.push({
-      x, y,
-      vx: Math.cos(a) * s,
-      vy: Math.sin(a) * s - 60,
-      r: Math.random() * 3.5 + 1.5,
-      life: 1,
-      decay: Math.random() * 1.2 + 0.8
-    });
-  }
-}
-
-function updateParticles(dt) {
-  for (const p of particles) {
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.vy += 220 * dt;         // gravity
-    p.vx *= (1 - 2 * dt);     // drag
-    p.life -= p.decay * dt;
-  }
-  particles = particles.filter(p => p.life > 0);
-}
-
-function drawParticles() {
-  for (const p of particles) {
-    ctx.fillStyle = `rgba(255,255,255,${Math.min(p.life, 1) * 0.9})`;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  dogs = dogs.filter(d => {
+    const sy = d.wy - worldY + SKIER_Y;
+    return sy > -60 && d.x > -60 && d.x < W + 60;
+  });
 }
 
 // ─── Update ──────────────────────────────────────────────────────────────────
 function update(dt) {
-  if (gameState === STATES.PLAYING) updatePlaying(dt);
-  else if (gameState === STATES.DEAD)  updateDead(dt);
+  if (gameState === STATES.PLAYING)  updatePlaying(dt);
+  if (gameState === STATES.CRASHED)  updateCrashed(dt);
+  if (gameState === STATES.CAPTURED) updateCaptured(dt);
 }
 
 function updatePlaying(dt) {
-  playTime   += dt;
-  worldSpeed  = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
-  worldY     += worldSpeed * dt;
-  distance    = Math.floor(worldY * 0.1);
+  playTime  += dt;
+  worldSpeed = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
+  worldY    += worldSpeed * dt;
+  distance   = Math.floor(worldY * 0.1);
+  liftDist  += 60 * dt;
 
   let targetVx = 0;
   if (mouseMode) {
@@ -283,93 +575,243 @@ function updatePlaying(dt) {
   skier.vx = targetVx > skier.vx
     ? Math.min(skier.vx + accel * dt, targetVx)
     : Math.max(skier.vx - accel * dt, targetVx);
+  skier.x = clamp(skier.x + skier.vx * dt, 30, W - 30);
 
-  skier.x = clamp(skier.x + skier.vx * dt, 36, W - 36);
-
-  // Ski trail — record actual path
-  trail.push({ x: skier.x, wy: worldY });
-  while (trail.length > 0 && trail[0].wy < worldY - (SKIER_Y + 60)) trail.shift();
-  if (trail.length > 400) trail.shift();
-
-  // Snow spray when carving
-  if (Math.abs(skier.vx) > 120) {
-    spawnSpray(skier.x - Math.sign(skier.vx) * 8, SKIER_Y + 18, -Math.sign(skier.vx), 2);
-  } else if (worldSpeed > 350 && Math.random() < 0.4) {
-    spawnSpray(skier.x, SKIER_Y + 20, 0, 1);
+  // Airborne timer
+  if (skier.airT > 0) {
+    skier.airE += dt;
+    if (skier.airE >= skier.airT) { skier.airT = 0; skier.airE = 0; }
   }
 
+  // Ski tracks (only on the ground)
+  if (skier.airT === 0) {
+    trail.push({ x: skier.x, wy: worldY });
+  }
+  while (trail.length > 0 && trail[0].wy < worldY - (SKIER_Y + 60)) trail.shift();
+  if (trail.length > 500) trail.shift();
+
   spawnObstacles();
-  updateYeti(dt);
+  spawnDogMaybe(dt);
+  updateDogs(dt);
+  updateMonster(dt);
   checkCollisions();
 }
 
-function updateYeti(dt) {
-  if (!yeti.active) {
-    if (worldY > YETI_TRIGGER) {
-      yeti.active  = true;
-      yeti.x       = W + 80;
-      yeti.worldY  = worldY + (H - SKIER_Y) + 120;
-      yeti.warning = 180;
+function updateDogs(dt) {
+  for (const d of dogs) {
+    d.x += d.dir * 45 * dt;
+    d.woofT -= dt;
+    const sy = d.wy - worldY + SKIER_Y;
+    if (d.woofT <= 0 && Math.abs(d.x - skier.x) < 110 && Math.abs(sy - SKIER_Y) < 90) {
+      d.woofT = 2.5;
+    }
+  }
+}
+
+// ─── Monster ──────────────────────────────────────────────────────────────────
+function updateMonster(dt) {
+  if (!monster.active) {
+    if (worldY > nextMonsterAt) {
+      monster.active = true;
+      monster.type   = MON_TYPES[Math.floor(Math.random() * MON_TYPES.length)];
+      monster.phase  = 'chase';
+      monster.t      = 0;
+      monster.x      = Math.random() < 0.5 ? -60 : W + 60;
+      monster.worldY = worldY + (H - SKIER_Y) + 140;
+      monster.patience = 15 + Math.random() * 10;
+      monster.animFrame = 0;
+      monster.animTimer = 0;
     }
     return;
   }
 
-  yeti.warning = Math.max(0, yeti.warning - 1);
+  monster.t += dt;
+  monster.animTimer += dt;
+  if (monster.animTimer > 0.15) { monster.animFrame++; monster.animTimer = 0; }
 
-  if (yeti.phase === 'eating') return;
+  const def = MON_DEFS[monster.type];
+  const monSY = monster.worldY - worldY + SKIER_Y;
 
-  const yetiSY = yeti.worldY - worldY + SKIER_Y;
-  const dx = skier.x - yeti.x;
-  const dy = SKIER_Y - yetiSY;
+  if (monster.phase === 'flee') {
+    monster.worldY += (worldSpeed + 240) * dt;
+    monster.x += monster.dir * 60 * dt;
+    if (monSY > H + 120) {
+      monster.active = false;
+      nextMonsterAt = worldY + 800 + Math.random() * 1000;
+    }
+    return;
+  }
+
+  // chase
+  if (monster.t > monster.patience) {
+    monster.phase = 'flee';
+    monster.dir = monster.x < W/2 ? -1 : 1;
+    return;
+  }
+
+  const dx = skier.x - monster.x;
+  const dy = SKIER_Y - monSY;
   const dist = Math.sqrt(dx*dx + dy*dy) || 1;
+  const spd = worldSpeed * def.spd + 45;
 
-  const yetiSpd = worldSpeed * 0.85 + 40;
+  monster.vx     = (dx / dist) * spd * 0.5;
+  const vyWorld  = worldSpeed + (dy / dist) * spd * 0.5;
+  monster.worldY += vyWorld * dt;
+  monster.x      += monster.vx * dt;
 
-  yeti.vx       = (dx / dist) * yetiSpd * 0.5;
-  const vyWorld = worldSpeed + (dy / dist) * yetiSpd * 0.5;
-  yeti.worldY  += vyWorld * dt;
-  yeti.x       += yeti.vx * dt;
-
-  yeti.animTimer += dt;
-  if (yeti.animTimer > 0.14) { yeti.animFrame++; yeti.animTimer = 0; }
-
-  const yetiSYnow = yeti.worldY - worldY + SKIER_Y;
-  if (circleOverlap(skier.x, SKIER_Y, skier.hitR, yeti.x, yetiSYnow, yeti.hitR)) {
-    yeti.phase  = 'eating';
-    deathCause  = CAUSES.EATEN;
-    gameState   = STATES.DEAD;
-    deathTimer  = 0;
-    shake       = 16;
+  const monSYnow = monster.worldY - worldY + SKIER_Y;
+  if (circleOverlap(skier.x, SKIER_Y, skier.hitR, monster.x, monSYnow, def.hitR)) {
+    startCapture(monSYnow);
   }
 }
 
+function startCapture(monSY) {
+  gameState = STATES.CAPTURED;
+  monster.phase = 'grab';
+  monster.t = 0;
+  monster.sy = monSY;          // switch monster to pure screen coords
+  monster.dir = monster.x < W/2 ? -1 : 1;  // exit toward nearest side
+  cap.x = skier.x;
+  cap.y = SKIER_Y;
+  cap.rot = 0;
+  cap.visible = true;
+  cap.vy = 0;
+  worldSpeed = 0;              // freeze the slope — the show plays out on a still stage
+}
+
+// Capture playout per monster type: grab animation, then carried off screen
+function updateCaptured(dt) {
+  monster.t += dt;
+  monster.animTimer += dt;
+  if (monster.animTimer > 0.12) { monster.animFrame++; monster.animTimer = 0; }
+  const t = monster.t;
+  const type = monster.type;
+  const dir = monster.dir;
+
+  if (monster.phase === 'grab') {
+    if (type === 'yeti') {
+      // bounces on the spot, then hoists skier overhead
+      monster.sy += Math.sin(t * 12) * 0.8;
+      if (t > 1.3) beginExit(dir * 130, 70);
+    } else if (type === 'ufo') {
+      // hover above skier, tractor-beam them up
+      const hoverY = cap.y - 130;
+      monster.x  += (cap.x - monster.x) * Math.min(4 * dt, 1);
+      monster.sy += (hoverY - monster.sy) * Math.min(4 * dt, 1);
+      if (t > 0.5) {
+        cap.y -= 95 * dt;              // beam lift
+        cap.rot += 7 * dt;             // helpless spinning
+        if (cap.y < monster.sy + 20) { cap.visible = false; }
+      }
+      if (t > 1.9) beginExit(dir * 240, -220);
+    } else if (type === 'dragon') {
+      // swoops onto skier, claws grab
+      monster.sy += (cap.y - 46 - monster.sy) * Math.min(5 * dt, 1);
+      monster.x  += (cap.x - monster.x) * Math.min(5 * dt, 1);
+      if (t > 0.8) beginExit(dir * 170, -170);
+    } else if (type === 'dino') {
+      // chomps skier sideways into its jaws
+      monster.sy += Math.sin(t * 14) * 0.6;
+      cap.rot += (Math.PI/2 - cap.rot) * Math.min(6 * dt, 1);
+      cap.x += (monster.x - dir * 28 - cap.x) * Math.min(5 * dt, 1);
+      cap.y += (monster.sy - 34 - cap.y) * Math.min(5 * dt, 1);
+      if (t > 1.1) beginExit(dir * 150, 60);
+    } else if (type === 'bison') {
+      // lunges and flips the skier skyward
+      monster.x += dir * -30 * dt;   // small lunge toward skier
+      if (t > 0.45 && cap.vy === 0) {
+        cap.vy = -420;               // launch!
+      }
+      if (t > 0.55) beginExit(dir * 210, 90);
+    }
+  }
+
+  if (monster.phase === 'exit') {
+    monster.x  += monster.exitVX * dt;
+    monster.sy += monster.exitVY * dt;
+
+    // skier rides along per type
+    if (type === 'yeti') {
+      cap.x = monster.x; cap.y = monster.sy - 72; cap.rot = Math.PI / 2;
+    } else if (type === 'dragon') {
+      cap.x = monster.x; cap.y = monster.sy + 16;
+      cap.rot = Math.sin(globalTime * 4) * 0.3;
+    } else if (type === 'dino') {
+      cap.x = monster.x - dir * 28; cap.y = monster.sy - 34; cap.rot = Math.PI / 2;
+    }
+    // ufo: skier already aboard (invisible); bison: skier is a free projectile
+  }
+
+  // bison launch physics (runs in both phases once launched)
+  if (type === 'bison' && cap.vy !== 0) {
+    cap.y += cap.vy * dt;
+    cap.x += dir * 40 * dt;
+    cap.rot += 9 * dt;
+  }
+
+  // done when everyone is off screen (the skier rides with the monster,
+  // except the bison launch where they fly off the top separately)
+  const monOff = monster.x < -90 || monster.x > W + 90 || monster.sy < -100 || monster.sy > H + 100;
+  if (monster.phase === 'exit' && monOff && (type !== 'bison' || cap.y < -60)) {
+    endMsg = MON_DEFS[type].msg;
+    gameState = STATES.GAMEOVER;
+    saveHighScore();
+  }
+}
+
+function beginExit(vx, vy) {
+  monster.phase = 'exit';
+  monster.exitVX = vx;
+  monster.exitVY = vy;
+}
+
+// ─── Collisions ───────────────────────────────────────────────────────────────
 function checkCollisions() {
+  // Lift towers (fixed x, every 450 world units)
+  if (skier.airT === 0) {
+    const m0 = Math.floor((worldY - SKIER_Y) / 450);
+    for (let m = m0; m < m0 + 3; m++) {
+      const sy = m * 450 - worldY + SKIER_Y;
+      if (circleOverlap(skier.x, SKIER_Y + 6, skier.hitR, LIFT_X, sy - 8, 9)) {
+        crash('tower');
+        return;
+      }
+    }
+  }
+
   for (const obs of obstacles) {
+    const cfg = OBS_CFG[obs.type];
+    if (cfg.deco) continue;
     const sy = obs.worldY - worldY + SKIER_Y;
     if (Math.abs(obs.x - skier.x) > 80 || Math.abs(sy - SKIER_Y) > 80) continue;
-    if (circleOverlap(skier.x, SKIER_Y + 6, skier.hitR, obs.x, sy - obs.h * 0.25, obs.r)) {
-      deathCause = CAUSES.CRASH;
-      gameState  = STATES.DEAD;
-      deathTimer = 0;
-      shake      = 14;
-      spawnBurst(skier.x, SKIER_Y + 6, 40);
+    if (!circleOverlap(skier.x, SKIER_Y + 6, skier.hitR, obs.x, sy - cfg.ch, cfg.r)) continue;
+
+    if (cfg.ramp) {
+      if (skier.airT === 0) {           // big air off the ramp
+        skier.airT = 1.15; skier.airE = 0; skier.airPeak = 36;
+      }
+    } else if (cfg.mogul) {
+      if (skier.airT === 0) {           // little hop
+        skier.airT = 0.35; skier.airE = 0; skier.airPeak = 10;
+      }
+    } else if (skier.airT === 0) {      // airborne skiers clear everything else
+      crash(obs.type);
       return;
     }
   }
 }
 
-function updateDead(dt) {
+function crash(what) {
+  gameState = STATES.CRASHED;
+  deathTimer = 0;
+  endMsg = CRASH_MSGS[what] || 'You wiped out!';
+}
+
+function updateCrashed(dt) {
   deathTimer += dt;
-  if (deathCause === CAUSES.CRASH && deathTimer > 2.2) {
+  if (deathTimer > 2) {
     gameState = STATES.GAMEOVER;
     saveHighScore();
-  }
-  if (deathCause === CAUSES.EATEN && deathTimer > 1.8) {
-    gameState = STATES.GAMEOVER;
-    saveHighScore();
-  }
-  if (deathCause === CAUSES.CRASH) {
-    worldY += 20 * dt;
   }
 }
 
@@ -381,909 +823,300 @@ function saveHighScore() {
     highScore = Math.max(distance, prev);
   } catch(e) { highScore = distance; }
 }
-
 function loadHighScore() {
   try { highScore = parseInt(localStorage.getItem('skifree_hs') || '0', 10); }
   catch(e) { highScore = 0; }
 }
 
-// ─── Text Helper ─────────────────────────────────────────────────────────────
-function drawText(text, x, y, size, color, align='center', opts={}) {
-  ctx.font = `${opts.weight || 'bold'} ${size}px ${FONT}`;
-  ctx.textAlign = align;
-  ctx.textBaseline = 'middle';
-  if (opts.stroke) {
-    ctx.lineWidth = opts.strokeW || Math.max(3, size / 8);
-    ctx.strokeStyle = opts.stroke;
-    ctx.lineJoin = 'round';
-    ctx.strokeText(text, x, y);
-  } else if (opts.shadow !== false) {
-    ctx.fillStyle = 'rgba(20,40,70,0.45)';
-    ctx.fillText(text, x + 1.5, y + 2);
+// ─── Drawing ─────────────────────────────────────────────────────────────────
+function drawBumps() {
+  ctx.strokeStyle = '#b0b0b0';
+  ctx.lineWidth = 2;
+  for (const b of bumps) {
+    const sy = ((b.wy - worldY) % 2000 + 2000) % 2000 - 200;
+    if (sy < -30 || sy > H + 30) continue;
+    ctx.beginPath(); ctx.arc(b.x, sy, 10, Math.PI, 0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(b.x + 16, sy + 5, 7, Math.PI, 0); ctx.stroke();
   }
-  ctx.fillStyle = color;
-  ctx.fillText(text, x, y);
 }
 
-// ─── Background ──────────────────────────────────────────────────────────────
-let vignette;
-function makeVignette() {
-  vignette = ctx.createRadialGradient(W/2, H/2, H * 0.35, W/2, H/2, H * 0.85);
-  vignette.addColorStop(0, 'rgba(40,80,130,0)');
-  vignette.addColorStop(1, 'rgba(30,60,110,0.22)');
-}
-makeVignette();
-
-function drawBackground() {
-  // Snow base — cool at top, warm-white at bottom (sunlit)
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0,   '#cfe6f5');
-  grad.addColorStop(0.4, '#e9f5fc');
-  grad.addColorStop(1,   '#ffffff');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Soft sunlight sweep from top-left
-  const sun = ctx.createRadialGradient(W * 0.2, -80, 0, W * 0.2, -80, H * 1.1);
-  sun.addColorStop(0, 'rgba(255,250,225,0.35)');
-  sun.addColorStop(1, 'rgba(255,250,225,0)');
-  ctx.fillStyle = sun;
-  ctx.fillRect(0, 0, W, H);
-
-  // Subtle snow drifts / patches scrolling with the world
-  for (const p of snowPatches) {
-    const sy = ((p.wy - worldY * 0.9) % 1400 + 1400) % 1400 - 200;
-    if (sy < -80 || sy > H + 80) continue;
-    const g = ctx.createRadialGradient(p.x, sy, 0, p.x, sy, p.rx);
-    g.addColorStop(0, 'rgba(190,220,240,0.28)');
-    g.addColorStop(1, 'rgba(190,220,240,0)');
-    ctx.save();
-    ctx.translate(p.x, sy);
-    ctx.scale(1, p.ry / p.rx);
-    ctx.translate(-p.x, -sy);
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(p.x, sy, p.rx, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // Ground sparkles
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  const offset = worldY * 0.15 % H;
-  for (const f of snowFlakes) {
-    const fy = ((f.y - offset) % H + H) % H;
-    const tw = 0.5 + 0.5 * Math.sin(globalTime * 3 + f.x);
-    ctx.globalAlpha = 0.35 + 0.5 * tw;
-    ctx.beginPath();
-    ctx.arc(f.x, fy, f.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-}
-
-// Ski trail following the skier's real path
 function drawTrail() {
   if (trail.length < 2) return;
-  ctx.lineCap = 'round';
-  for (const side of [-4.5, 4.5]) {
+  ctx.strokeStyle = '#c8c8c8';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'butt';
+  for (const side of [-4, 4]) {
     ctx.beginPath();
-    let started = false;
+    let started = false, prevSy = 0;
     for (const p of trail) {
       const sy = p.wy - worldY + SKIER_Y;
       if (sy < -20) continue;
       if (!started) { ctx.moveTo(p.x + side, sy); started = true; }
-      else ctx.lineTo(p.x + side, sy);
+      else if (sy - prevSy < 40) ctx.lineTo(p.x + side, sy);
+      else ctx.moveTo(p.x + side, sy);    // gap where the skier was airborne
+      prevSy = sy;
     }
-    ctx.strokeStyle = 'rgba(150,190,220,0.55)';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    // inner groove highlight
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = 1;
     ctx.stroke();
   }
 }
 
-// Foreground falling snow (parallax depth)
-function drawFallingSnow(dt) {
-  for (const f of fgFlakes) {
-    f.y += f.spd * dt + worldSpeed * dt * 0.12;
-    f.sway += dt * 1.5;
-    f.x += Math.sin(f.sway) * 12 * dt;
-    if (f.y > H + 10) { f.y = -10; f.x = Math.random() * W; }
-    ctx.fillStyle = `rgba(255,255,255,${0.5 + f.r * 0.1})`;
-    ctx.beginPath();
-    ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-}
-
-// Speed streaks at high velocity
-function drawSpeedLines() {
-  const t = (worldSpeed - 400) / (MAX_SPEED - 400);
-  if (t <= 0) return;
-  ctx.strokeStyle = `rgba(255,255,255,${t * 0.35})`;
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 10; i++) {
-    const x = ((i * 97 + globalTime * 900) % W);
-    const y = ((i * 173 + globalTime * (600 + i * 40) * (worldSpeed / MAX_SPEED)) % H);
-    const len = 30 + t * 50;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x - t * 6, y - len);
-    ctx.stroke();
-  }
-}
-
-// ─── Skier ───────────────────────────────────────────────────────────────────
-function drawSkier(x, y, vx, crashed, crashT) {
-  if (crashed) {
-    drawSkierCrash(x, y, crashT);
-    return;
-  }
-
-  const angle = clamp(vx / MAX_VX, -1, 1);
-  const tilt  = angle * 0.45;
-  const bob   = Math.sin(globalTime * 9) * 1.2;
-
-  groundShadow(x, y + 22, 22, 8, 0.35);
-
-  ctx.save();
-  ctx.translate(x, y + bob * 0.4);
-  ctx.rotate(tilt);
-
-  const skiSpread = 9;
-  const skiAngle = angle * 0.35;
-
-  // ── Skis: rounded, red with white tips
-  for (const s of [-1, 1]) {
-    ctx.save();
-    ctx.translate(s * skiSpread, 12);
-    ctx.rotate(skiAngle * s * 0.4);
-    const skiGrad = ctx.createLinearGradient(-3, 0, 3, 0);
-    skiGrad.addColorStop(0, '#e53935');
-    skiGrad.addColorStop(0.5, '#ff6f60');
-    skiGrad.addColorStop(1, '#c62828');
-    ctx.fillStyle = skiGrad;
-    rr(-2.5, -6, 5, 22, 2.5);
-    ctx.fill();
-    // tip
-    ctx.fillStyle = '#fff';
-    rr(-2.5, 12, 5, 4, 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  // ── Poles + gloves
-  ctx.strokeStyle = '#78909c';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-13, -2); ctx.lineTo(-17, 15); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(13, -2);  ctx.lineTo(17, 15);  ctx.stroke();
-  fillCircle(-13, -2, 3, '#37474f');
-  fillCircle(13, -2, 3, '#37474f');
-
-  // ── Scarf trailing behind
-  ctx.strokeStyle = '#ffca28';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(0, -4);
-  const wave = Math.sin(globalTime * 8) * 4;
-  ctx.quadraticCurveTo(-angle * 10 + wave, -12, -angle * 16 + wave * 1.6, -20 - worldSpeed * 0.01);
-  ctx.stroke();
-
-  // ── Body: gradient jacket
-  const jacket = ctx.createLinearGradient(-9, -6, 9, 14);
-  jacket.addColorStop(0, '#42a5f5');
-  jacket.addColorStop(0.55, '#1e88e5');
-  jacket.addColorStop(1, '#1259a5');
-  ctx.fillStyle = jacket;
-  ctx.beginPath();
-  ctx.ellipse(0, 4, 9, 11, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // zipper + trim
-  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath(); ctx.moveTo(0, -4); ctx.lineTo(0, 10); ctx.stroke();
-  // rim light
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+function drawLift() {
+  // cables
+  ctx.strokeStyle = '#808080';
   ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.ellipse(0, 4, 9, 11, 0, Math.PI * 1.1, Math.PI * 1.9);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(LIFT_X - 8, 0); ctx.lineTo(LIFT_X - 8, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(LIFT_X + 8, 0); ctx.lineTo(LIFT_X + 8, H); ctx.stroke();
 
-  // ── Head
-  const skin = ctx.createRadialGradient(-2, -10, 1, 0, -8, 8);
-  skin.addColorStop(0, '#ffd9b8');
-  skin.addColorStop(1, '#eab88f');
-  fillCircle(0, -8, 7, '#eab88f');
-  ctx.fillStyle = skin;
-  ctx.beginPath(); ctx.arc(0, -8, 7, 0, Math.PI * 2); ctx.fill();
-
-  // ── Goggles
-  ctx.fillStyle = '#263238';
-  rr(-6.5, -11.5, 13, 5.5, 2.5);
-  ctx.fill();
-  const lens = ctx.createLinearGradient(-6, -11, 6, -6);
-  lens.addColorStop(0, '#80deea');
-  lens.addColorStop(0.5, '#26c6da');
-  lens.addColorStop(1, '#0097a7');
-  ctx.fillStyle = lens;
-  rr(-5.5, -10.8, 11, 4.2, 2);
-  ctx.fill();
-  // lens glint
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  rr(-4.5, -10.2, 3.5, 1.4, 0.7);
-  ctx.fill();
-
-  // ── Beanie with pompom
-  const hat = ctx.createLinearGradient(-7, -18, 7, -12);
-  hat.addColorStop(0, '#ef5350');
-  hat.addColorStop(1, '#c62828');
-  ctx.fillStyle = hat;
-  ctx.beginPath();
-  ctx.arc(0, -12, 7.2, Math.PI, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#fff';
-  rr(-7.2, -13.5, 14.4, 2.6, 1.3);
-  ctx.fill();
-  const pomBob = Math.sin(globalTime * 9) * 1;
-  fillCircle(0, -20 + pomBob, 3.2, '#fff');
-  fillCircle(-1, -21 + pomBob, 1.2, 'rgba(255,255,255,0.9)');
-
-  ctx.restore();
-}
-
-function drawSkierCrash(x, y, crashT) {
-  const spread = Math.min(crashT * 80, 26);
-
-  groundShadow(x, y + 20, 26, 9, 0.3);
-
-  // Snow mound where they landed
-  if (crashT > 0.25) {
-    const mound = ctx.createRadialGradient(x, y + 10, 0, x, y + 10, 24);
-    mound.addColorStop(0, 'rgba(255,255,255,0.95)');
-    mound.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = mound;
-    ctx.beginPath();
-    ctx.ellipse(x, y + 10, 24, 12, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // towers, fixed in world space
+  const m0 = Math.floor((worldY - SKIER_Y - 100) / 450);
+  for (let m = m0; m < m0 + 4; m++) {
+    const sy = m * 450 - worldY + SKIER_Y;
+    if (sy < -40 || sy > H + 40) continue;
+    ctx.fillStyle = '#606060';
+    ctx.fillRect(LIFT_X - 3, sy - 34, 6, 34);
+    ctx.fillRect(LIFT_X - 14, sy - 34, 28, 4);
+    ctx.fillStyle = '#404040';
+    ctx.fillRect(LIFT_X - 6, sy - 4, 12, 4);
   }
 
-  ctx.save();
-  ctx.translate(x, y);
-
-  // Scattered skis
-  ctx.save();
-  ctx.rotate(crashT * 3);
-  for (const a of [0.7, -0.9]) {
-    ctx.save();
-    ctx.rotate(a);
-    const skiGrad = ctx.createLinearGradient(-2, 0, 2, 0);
-    skiGrad.addColorStop(0, '#e53935');
-    skiGrad.addColorStop(1, '#c62828');
-    ctx.fillStyle = skiGrad;
-    rr(-2.5, -spread, 5, spread * 2, 2.5);
-    ctx.fill();
-    ctx.restore();
-  }
-  ctx.restore();
-
-  // Tumbled body, legs up
-  const tumble = Math.min(crashT * 5, Math.PI * 0.9);
-  ctx.rotate(tumble);
-  const jacket = ctx.createLinearGradient(-8, -4, 8, 10);
-  jacket.addColorStop(0, '#42a5f5');
-  jacket.addColorStop(1, '#1259a5');
-  ctx.fillStyle = jacket;
-  ctx.beginPath();
-  ctx.ellipse(0, 2, 8, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  fillCircle(0, -9, 6, '#eab88f');
-  // dizzy eyes (X X)
-  ctx.strokeStyle = '#37474f';
-  ctx.lineWidth = 1.3;
-  for (const ex of [-2.5, 2.5]) {
-    ctx.beginPath();
-    ctx.moveTo(ex - 1.3, -10.3); ctx.lineTo(ex + 1.3, -7.7);
-    ctx.moveTo(ex + 1.3, -10.3); ctx.lineTo(ex - 1.3, -7.7);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  // Stars circling head (cartoon dizzy)
-  const alpha = Math.max(0, 1 - crashT * 0.5);
-  for (let i = 0; i < 4; i++) {
-    const a = globalTime * 4 + i * (Math.PI / 2);
-    const sx = x + Math.cos(a) * 24;
-    const sy = y - 18 + Math.sin(a) * 8;
-    drawStar(sx, sy, 4, `rgba(255,213,79,${alpha})`);
-  }
-
-  if (crashT < 0.9) {
-    const a = crashT < 0.4 ? crashT / 0.4 : 1 - (crashT - 0.4) / 0.5;
-    drawText('OOF!', x, y - 40 - crashT * 25, 24, `rgba(255,255,255,${Math.max(0,a)})`,
-      'center', { stroke: `rgba(211,47,47,${Math.max(0,a)})`, strokeW: 5 });
+  // chairs riding up the mountain (with the occasional passenger)
+  const G = 130;
+  const offset = (worldY + liftDist) % G;
+  for (let k = -1; k < H / G + 1; k++) {
+    const cy = k * G - offset;
+    if (cy < -20 || cy > H + 20) continue;
+    ctx.fillStyle = '#404040';
+    ctx.fillRect(LIFT_X + 6, cy, 2, 10);       // hanger
+    ctx.fillRect(LIFT_X + 2, cy + 10, 12, 3);  // seat
+    if ((k + Math.floor((worldY + liftDist) / G)) % 3 === 0) {
+      ctx.fillStyle = PAL.R; ctx.fillRect(LIFT_X + 5, cy + 2, 4, 3);   // rider hat
+      ctx.fillStyle = PAL.P; ctx.fillRect(LIFT_X + 4, cy + 5, 6, 5);   // rider body
+    }
   }
 }
 
-function drawStar(x, y, r, color) {
-  ctx.fillStyle = color;
-  ctx.beginPath();
-  for (let i = 0; i < 5; i++) {
-    const a = -Math.PI / 2 + i * (Math.PI * 2 / 5);
-    const a2 = a + Math.PI / 5;
-    ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
-    ctx.lineTo(x + Math.cos(a2) * r * 0.45, y + Math.sin(a2) * r * 0.45);
-  }
-  ctx.closePath();
-  ctx.fill();
-}
-
-// ─── Obstacles ───────────────────────────────────────────────────────────────
 function drawObstacle(obs) {
   const sy = obs.worldY - worldY + SKIER_Y;
   if (sy < -60 || sy > H + 60) return;
-
-  ctx.save();
-  ctx.translate(obs.x, sy);
+  const x = obs.x;
 
   switch (obs.type) {
-    case 'tree': drawTree(obs.variant); break;
-    case 'rock': drawRock(obs.variant); break;
-    case 'mogul': drawMogul(); break;
-    case 'treestump': drawTreeStump(); break;
-    case 'sign': drawSign(obs.variant); break;
-  }
-
-  ctx.restore();
-}
-
-function drawTree(variant) {
-  const scale = [0.8, 1.0, 1.3][variant];
-  const h = 50 * scale, tw = 17 * scale;
-
-  groundShadow(3, 3, tw * 1.4, tw * 0.45, 0.3);
-
-  // Trunk with bark shading
-  const bark = ctx.createLinearGradient(-3 * scale, 0, 3 * scale, 0);
-  bark.addColorStop(0, '#4e342e');
-  bark.addColorStop(0.5, '#795548');
-  bark.addColorStop(1, '#3e2723');
-  ctx.fillStyle = bark;
-  rr(-3 * scale, -2, 6 * scale, 14 * scale, 2 * scale);
-  ctx.fill();
-
-  // Three foliage tiers, each with left-lit gradient
-  const tiers = [
-    { y: 0,        w: tw,        top: -h * 0.45, c1: '#0d4a14', c2: '#1e7a2a' },
-    { y: -h * 0.34, w: tw * 0.8, top: -h * 0.72, c1: '#155d1e', c2: '#2e9c3c' },
-    { y: -h * 0.6,  w: tw * 0.56, top: -h * 0.95, c1: '#1b6d26', c2: '#3cb54a' }
-  ];
-  for (const t of tiers) {
-    const g = ctx.createLinearGradient(-t.w, t.y, t.w, t.y);
-    g.addColorStop(0, t.c2);
-    g.addColorStop(0.55, t.c1);
-    g.addColorStop(1, '#0a3d10');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.moveTo(-t.w, t.y);
-    ctx.quadraticCurveTo(-t.w * 0.3, t.y - 2 * scale, 0, t.top);
-    ctx.quadraticCurveTo(t.w * 0.3, t.y - 2 * scale, t.w, t.y);
-    ctx.quadraticCurveTo(0, t.y + 3 * scale, -t.w, t.y);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // Snow caps with soft edges
-  for (const t of tiers) {
-    const sg = ctx.createLinearGradient(0, t.top, 0, t.y);
-    sg.addColorStop(0, 'rgba(255,255,255,0.95)');
-    sg.addColorStop(0.7, 'rgba(255,255,255,0)');
-    ctx.fillStyle = sg;
-    ctx.beginPath();
-    ctx.moveTo(-t.w * 0.55, t.y - (t.y - t.top) * 0.45);
-    ctx.quadraticCurveTo(0, t.top - 1, t.w * 0.55, t.y - (t.y - t.top) * 0.45);
-    ctx.quadraticCurveTo(t.w * 0.2, t.y - (t.y - t.top) * 0.3, 0, t.y - (t.y - t.top) * 0.4);
-    ctx.quadraticCurveTo(-t.w * 0.2, t.y - (t.y - t.top) * 0.28, -t.w * 0.55, t.y - (t.y - t.top) * 0.45);
-    ctx.closePath();
-    ctx.fill();
+    case 'tree':  sprite(TREE_BUSHY, x, sy, 2); break;
+    case 'pine':  sprite(TREE_PINE, x, sy, 2); break;
+    case 'rock':  sprite(ROCK, x, sy, 2); break;
+    case 'stump': sprite(STUMP, x, sy, 2); break;
+    case 'sign':  sprite(obs.variant ? SIGN_R : SIGN_L, x, sy, 2); break;
+    case 'flag':  sprite(obs.variant ? FLAG_B : FLAG_R, x, sy, 2); break;
+    case 'jump':  sprite(JUMP_RAMP, x, sy, 2, obs.variant === 1); break;
+    case 'mogul':
+      ctx.strokeStyle = '#a0a0a0';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, sy, 13, Math.PI, 0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x - 6, sy + 4, 8, Math.PI, 0); ctx.stroke();
+      break;
   }
 }
 
-function drawRock(variant) {
-  const shapes = [
-    [[-13,0],[-11,-9],[0,-13],[11,-10],[13,-2],[9,4],[-7,4]],
-    [[-11,0],[-13,-6],[0,-11],[9,-9],[12,0],[7,5],[-5,5]],
-    [[-12,0],[-9,-10],[-2,-14],[10,-9],[14,0],[10,6],[-6,5]]
-  ];
-  const pts = shapes[variant];
-
-  groundShadow(3, 4, 16, 6, 0.3);
-
-  const g = ctx.createLinearGradient(-12, -14, 12, 6);
-  g.addColorStop(0, '#90a4ae');
-  g.addColorStop(0.5, '#607d8b');
-  g.addColorStop(1, '#37474f');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.moveTo(pts[0][0], pts[0][1]);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-  ctx.closePath();
-  ctx.fill();
-
-  // Snow sitting on top
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.beginPath();
-  ctx.moveTo(pts[1][0], pts[1][1]);
-  ctx.quadraticCurveTo(pts[2][0], pts[2][1] - 2, pts[3][0], pts[3][1]);
-  ctx.quadraticCurveTo(pts[2][0], pts[2][1] + 3.5, pts[1][0], pts[1][1]);
-  ctx.closePath();
-  ctx.fill();
-
-  // Crack detail
-  ctx.strokeStyle = 'rgba(38,50,56,0.5)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(pts[3][0] * 0.5, pts[3][1] * 0.5);
-  ctx.lineTo(pts[3][0] * 0.2 + 2, 2);
-  ctx.stroke();
-}
-
-function drawMogul() {
-  groundShadow(2, 4, 18, 7, 0.25);
-  const g = ctx.createRadialGradient(-5, -5, 2, 0, 0, 18);
-  g.addColorStop(0, '#ffffff');
-  g.addColorStop(0.6, '#dceef8');
-  g.addColorStop(1, '#b8d8ea');
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 16, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawTreeStump() {
-  groundShadow(2, 5, 11, 4.5, 0.3);
-  const bark = ctx.createLinearGradient(-6, 0, 6, 0);
-  bark.addColorStop(0, '#6d4c41');
-  bark.addColorStop(0.5, '#4e342e');
-  bark.addColorStop(1, '#3e2723');
-  ctx.fillStyle = bark;
-  rr(-6, -8, 12, 14, 3);
-  ctx.fill();
-  // Ring top
-  ctx.fillStyle = '#a1887f';
-  ctx.beginPath();
-  ctx.ellipse(0, -8, 6, 2.8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#795548';
-  ctx.lineWidth = 0.8;
-  ctx.beginPath();
-  ctx.ellipse(0, -8, 3.5, 1.6, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  // Snow dusting
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  ctx.beginPath();
-  ctx.ellipse(-2, -9.5, 4, 1.4, -0.2, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function drawSign(variant) {
-  const msgs = ['RUN!', '→ 200m', 'DANGER'];
-  const colors = [['#ff5252','#c62828'], ['#ffb74d','#ef6c00'], ['#ffee58','#f9a825']];
-
-  groundShadow(2, 15, 12, 5, 0.28);
-
-  // Post
-  const post = ctx.createLinearGradient(-2, 0, 2, 0);
-  post.addColorStop(0, '#8d6e63');
-  post.addColorStop(1, '#5d4037');
-  ctx.fillStyle = post;
-  rr(-2, -8, 4, 22, 1.5);
-  ctx.fill();
-
-  // Board with gradient + border
-  const [c1, c2] = colors[variant];
-  const bg = ctx.createLinearGradient(0, -22, 0, -6);
-  bg.addColorStop(0, c1);
-  bg.addColorStop(1, c2);
-  ctx.fillStyle = bg;
-  rr(-16, -22, 32, 16, 3);
-  ctx.fill();
-  ctx.strokeStyle = '#fff';
-  ctx.lineWidth = 1.5;
-  rr(-14.5, -20.5, 29, 13, 2);
-  ctx.stroke();
-
-  ctx.font = `bold 8px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#fff';
-  ctx.fillText(msgs[variant], 0, -13.5);
-}
-
-// ─── Yeti ─────────────────────────────────────────────────────────────────────
-function drawYeti() {
-  if (!yeti.active) return;
-  const sy = yeti.worldY - worldY + SKIER_Y;
-  if (sy < -90 || sy > H + 90) return;
-
-  ctx.save();
-  ctx.translate(yeti.x, sy);
-
-  const frame = yeti.animFrame % 2;
-  const runBob = yeti.phase === 'chase' ? Math.sin(yeti.animFrame * Math.PI) * 2 : 0;
-  ctx.translate(0, runBob);
-
-  groundShadow(0, 44, 26, 9, 0.35);
-
-  // ── Legs (behind body)
-  ctx.strokeStyle = '#cfd8dc';
-  ctx.lineWidth = 9;
-  ctx.lineCap = 'round';
-  if (frame === 0) {
-    ctx.beginPath(); ctx.moveTo(-8, 26); ctx.lineTo(-11, 42); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(8, 26);  ctx.lineTo(13, 38);  ctx.stroke();
-  } else {
-    ctx.beginPath(); ctx.moveTo(-8, 26); ctx.lineTo(-13, 38); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(8, 26);  ctx.lineTo(11, 42);  ctx.stroke();
-  }
-  // feet
-  for (const s of [-1, 1]) {
-    const fx = s * (frame === 0 ? (s < 0 ? 11 : 13) : (s < 0 ? 13 : 11));
-    const fy = (frame === 0) === (s < 0) ? 42 : 38;
-    fillCircle(fx, fy, 5, '#eceff1');
-  }
-
-  // ── Body: radial-shaded fur
-  const fur = ctx.createRadialGradient(-6, -4, 4, 0, 6, 30);
-  fur.addColorStop(0, '#ffffff');
-  fur.addColorStop(0.6, '#eceff1');
-  fur.addColorStop(1, '#b0bec5');
-  ctx.fillStyle = fur;
-  ctx.beginPath();
-  ctx.ellipse(0, 6, 18, 24, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Belly patch
-  ctx.fillStyle = 'rgba(207,222,227,0.7)';
-  ctx.beginPath();
-  ctx.ellipse(0, 10, 10, 14, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Fur tufts along sides
-  ctx.fillStyle = '#f5f7f8';
-  for (let i = 0; i < 5; i++) {
-    const a = -0.9 + i * 0.45;
-    fillCircle(Math.cos(a + Math.PI/2) * 17, 6 + Math.sin(a + Math.PI/2) * 22, 3.5, '#f5f7f8');
-    fillCircle(-Math.cos(a + Math.PI/2) * 17, 6 + Math.sin(a + Math.PI/2) * 22, 3.5, '#f5f7f8');
-  }
-
-  // ── Arms with claws (alternating swing)
-  ctx.strokeStyle = '#e8edf0';
-  ctx.lineWidth = 8;
-  const armSwing = frame === 0 ? 1 : -1;
-  ctx.beginPath();
-  ctx.moveTo(-17, -2);
-  ctx.quadraticCurveTo(-30, armSwing * 4, -26, 12 + armSwing * 3);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(17, -2);
-  ctx.quadraticCurveTo(30, -armSwing * 4, 26, 12 - armSwing * 3);
-  ctx.stroke();
-  // claws
-  ctx.strokeStyle = '#78909c';
-  ctx.lineWidth = 1.5;
-  for (const s of [-1, 1]) {
-    const hy = 12 + (s < 0 ? armSwing : -armSwing) * 3;
-    for (let c = -1; c <= 1; c++) {
-      ctx.beginPath();
-      ctx.moveTo(s * 26 + c * 2.5, hy + 3);
-      ctx.lineTo(s * 26 + c * 3, hy + 7);
-      ctx.stroke();
+function drawDogs() {
+  for (const d of dogs) {
+    const sy = d.wy - worldY + SKIER_Y;
+    if (sy < -40 || sy > H + 40) continue;
+    sprite(d.dir > 0 ? DOG_2 : DOG_1, d.x, sy, 2, d.dir > 0);
+    if (d.woofT > 1.5) {
+      drawText('WOOF! WOOF!', d.x, sy - 28, 11, '#000');
     }
   }
+}
 
-  // ── Head
-  const headFur = ctx.createRadialGradient(-5, -24, 3, 0, -18, 18);
-  headFur.addColorStop(0, '#ffffff');
-  headFur.addColorStop(1, '#cfd8dc');
-  ctx.fillStyle = headFur;
-  ctx.beginPath();
-  ctx.arc(0, -18, 16, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Head tufts
-  for (let i = -2; i <= 2; i++) {
-    fillCircle(i * 6, -33, 3.2, '#f5f7f8');
-  }
-  // ears
-  fillCircle(-14, -28, 4, '#eceff1');
-  fillCircle(14, -28, 4, '#eceff1');
-
-  // Angry brow
-  ctx.strokeStyle = '#546e7a';
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(-10, -26); ctx.lineTo(-3, -23.5); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(10, -26);  ctx.lineTo(3, -23.5);  ctx.stroke();
-
-  // Eyes with menacing glow
-  fillCircle(-6, -21, 3.5, '#fff');
-  fillCircle(6, -21, 3.5, '#fff');
-  fillCircle(-5.5, -20.5, 2, '#1a237e');
-  fillCircle(6.5, -20.5, 2, '#1a237e');
-  fillCircle(-5, -21.2, 0.8, '#fff');
-  fillCircle(7, -21.2, 0.8, '#fff');
-
-  // Snout shading
-  ctx.fillStyle = 'rgba(176,190,197,0.5)';
-  ctx.beginPath();
-  ctx.ellipse(0, -12, 8, 5.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Mouth
-  if (yeti.phase === 'eating') {
-    ctx.fillStyle = '#7f1d1d';
-    ctx.beginPath();
-    ctx.ellipse(0, -11, 9, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    for (let i = -2; i <= 2; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * 3.5 - 1.6, -17);
-      ctx.lineTo(i * 3.5, -12.5);
-      ctx.lineTo(i * 3.5 + 1.6, -17);
-      ctx.closePath();
-      ctx.fill();
+function drawSkier() {
+  if (gameState === STATES.CRASHED) {
+    sprite(SKIER_CRASH, skier.x, SKIER_Y + 20, 2);
+    // dizzy stars
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 3; i++) {
+      const a = globalTime * 5 + i * 2.1;
+      const sx = Math.round(skier.x + Math.cos(a) * 22);
+      const sy = Math.round(SKIER_Y - 22 + Math.sin(a) * 6);
+      ctx.fillRect(sx - 1, sy - 3, 2, 7);
+      ctx.fillRect(sx - 3, sy - 1, 7, 2);
     }
-  } else {
-    ctx.fillStyle = '#5d4037';
-    ctx.beginPath();
-    ctx.arc(0, -12, 5, 0.15, Math.PI - 0.15);
-    ctx.fill();
-    // fangs
-    ctx.fillStyle = '#fff';
-    for (const fx of [-3.5, 3.5]) {
-      ctx.beginPath();
-      ctx.moveTo(fx - 1.3, -11.5);
-      ctx.lineTo(fx, -8);
-      ctx.lineTo(fx + 1.3, -11.5);
-      ctx.closePath();
-      ctx.fill();
-    }
+    if (deathTimer < 1.2) drawText('OUCH!', skier.x + 34, SKIER_Y - 24, 13, '#000', 'left');
+    return;
   }
 
-  ctx.restore();
-
-  // Warning banner
-  if (yeti.warning > 0 && Math.floor(yeti.warning / 15) % 2 === 0) {
+  if (gameState === STATES.CAPTURED) {
+    if (!cap.visible) return;
     ctx.save();
-    ctx.fillStyle = 'rgba(183,28,28,0.85)';
-    rr(W/2 - 170, 62, 340, 36, 18);
-    ctx.fill();
-    drawText('⚠ YETI APPROACHING! ⚠', W/2, 80, 18, '#fff', 'center', { shadow: false });
+    ctx.translate(Math.round(cap.x), Math.round(cap.y));
+    ctx.rotate(cap.rot);
+    sprite(SKIER_DOWN, 0, 17, 2);
     ctx.restore();
+    return;
+  }
+
+  // airborne arc
+  let lift = 0, rot = 0;
+  if (skier.airT > 0) {
+    const f = skier.airE / skier.airT;
+    lift = Math.sin(Math.PI * f) * skier.airPeak;
+    if (skier.airPeak > 20) rot = f * Math.PI * 2;   // backflip off the big ramp
+    // landing shadow
+    ctx.strokeStyle = '#b0b0b0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(skier.x, SKIER_Y + 20, 12, 4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  const g = skier.vx;
+  ctx.save();
+  ctx.translate(Math.round(skier.x), Math.round(SKIER_Y + 17 - lift));
+  if (rot) ctx.rotate(rot);
+  if (Math.abs(g) < 60) sprite(SKIER_DOWN, 0, 17, 2);
+  else sprite(SKIER_TURN, 0, 17, 2, g > 0);
+  ctx.restore();
+}
+
+function drawMonster() {
+  if (!monster.active && gameState !== STATES.CAPTURED) return;
+
+  const def = MON_DEFS[monster.type];
+  const grid = def.grids[monster.animFrame % 2];
+  const sy = (gameState === STATES.CAPTURED)
+    ? monster.sy
+    : monster.worldY - worldY + SKIER_Y;
+  if (sy < -110 || sy > H + 110) return;
+
+  let bob = 0;
+  if (monster.type === 'ufo') bob = Math.sin(globalTime * 3) * 4;
+
+  // UFO tractor beam during the grab
+  if (monster.type === 'ufo' && gameState === STATES.CAPTURED &&
+      monster.phase === 'grab' && monster.t > 0.4 && cap.visible) {
+    ctx.fillStyle = `rgba(0,255,0,${0.25 + 0.12 * Math.sin(globalTime * 18)})`;
+    ctx.beginPath();
+    ctx.moveTo(monster.x - 12, sy - 4);
+    ctx.lineTo(monster.x + 12, sy - 4);
+    ctx.lineTo(monster.x + 34, SKIER_Y + 24);
+    ctx.lineTo(monster.x - 34, SKIER_Y + 24);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  const flip = monster.vx > 10 || (monster.phase === 'exit' && monster.exitVX > 0);
+  sprite(grid, monster.x, sy + bob, def.scale, flip);
+
+  // chomp flair for the biters
+  if (gameState === STATES.CAPTURED && monster.phase === 'grab' &&
+      (monster.type === 'yeti' || monster.type === 'dino') &&
+      Math.floor(monster.t * 4) % 2 === 0) {
+    drawText('CHOMP!', monster.x, sy - def.grids[0].length * def.scale - 14, 14, '#000');
   }
 }
 
 // ─── HUD ─────────────────────────────────────────────────────────────────────
 function drawHUD() {
-  // Distance panel (left)
-  ctx.fillStyle = 'rgba(21,54,92,0.72)';
-  rr(14, 12, 190, 44, 12);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 1.5;
-  rr(14, 12, 190, 44, 12);
-  ctx.stroke();
-  drawText('DISTANCE', 30, 25, 10, 'rgba(180,215,245,0.9)', 'left', { shadow: false });
-  drawText(`${distance} m`, 30, 43, 20, '#fff', 'left', { shadow: false });
-
-  // Speed meter (right)
-  ctx.fillStyle = 'rgba(21,54,92,0.72)';
-  rr(W - 204, 12, 190, 44, 12);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  rr(W - 204, 12, 190, 44, 12);
-  ctx.stroke();
-  drawText('SPEED', W - 188, 25, 10, 'rgba(180,215,245,0.9)', 'left', { shadow: false });
-  // bar
-  const frac = (worldSpeed - BASE_SPEED * 0.6) / (MAX_SPEED - BASE_SPEED * 0.6);
-  ctx.fillStyle = 'rgba(255,255,255,0.18)';
-  rr(W - 188, 36, 158, 12, 6);
-  ctx.fill();
-  const barW = Math.max(12, 158 * clamp(frac, 0, 1));
-  const barG = ctx.createLinearGradient(W - 188, 0, W - 30, 0);
-  barG.addColorStop(0, '#4fc3f7');
-  barG.addColorStop(0.6, '#ffd54f');
-  barG.addColorStop(1, '#ff7043');
-  ctx.fillStyle = barG;
-  rr(W - 188, 36, barW, 12, 6);
-  ctx.fill();
-
-  // Best badge (center)
-  if (highScore > 0) {
-    ctx.fillStyle = 'rgba(21,54,92,0.72)';
-    rr(W/2 - 70, 12, 140, 30, 15);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,213,79,0.5)';
-    rr(W/2 - 70, 12, 140, 30, 15);
-    ctx.stroke();
-    drawText(`★ BEST ${highScore} m`, W/2, 27, 13, '#ffe082', 'center', { shadow: false });
-  }
+  const bx = W - 172, by = 8, bw = 164, bh = 78;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+  drawText(`Dist   ${distance} m`, bx + 10, by + 15, 13, '#000', 'left', 'normal');
+  drawText(`Speed  ${Math.round(worldSpeed / 10)} m/s`, bx + 10, by + 33, 13, '#000', 'left', 'normal');
+  drawText(`Best   ${highScore || 0} m`, bx + 10, by + 51, 13, '#000', 'left', 'normal');
+  drawText(`F2 = Restart`, bx + 10, by + 68, 12, '#606060', 'left', 'normal');
 }
 
 // ─── Screens ─────────────────────────────────────────────────────────────────
-function drawButton(b, label) {
-  // drop shadow
-  ctx.fillStyle = 'rgba(0,20,40,0.4)';
-  rr(b.x + 2, b.y + 4, b.w, b.h, 14);
-  ctx.fill();
-  // gradient face
-  const g = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-  g.addColorStop(0, '#66bb6a');
-  g.addColorStop(0.5, '#43a047');
-  g.addColorStop(1, '#2e7d32');
-  ctx.fillStyle = g;
-  rr(b.x, b.y, b.w, b.h, 14);
-  ctx.fill();
-  // top highlight
-  ctx.fillStyle = 'rgba(255,255,255,0.3)';
-  rr(b.x + 4, b.y + 3, b.w - 8, b.h * 0.4, 10);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  ctx.lineWidth = 2;
-  rr(b.x, b.y, b.w, b.h, 14);
-  ctx.stroke();
-  drawText(label, b.x + b.w/2, b.y + b.h/2 + 1, 19, '#fff', 'center', { shadow: false });
-}
-
 function drawStartScreen() {
-  ctx.fillStyle = 'rgba(13,36,66,0.68)';
-  ctx.fillRect(0, 0, W, H);
+  // translucent white behind text so the attract slope shows through
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.fillRect(W/2 - 260, 60, 520, 200);
+  ctx.strokeStyle = '#000';
+  ctx.strokeRect(W/2 - 260.5, 60.5, 520, 200);
 
-  const bob = Math.sin(globalTime * 2) * 6;
-
-  // Title with layered outline — Nintendo-style chunky logo
-  ctx.save();
-  ctx.font = `bold 84px ${FONT}`;
-  ctx.textAlign = 'center';
+  // logo: "Ski" blue serif italic + "free" scripty yellow
   ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  const ty = H/2 - 110 + bob;
-  ctx.lineWidth = 14;
-  ctx.strokeStyle = '#0d3a66';
-  ctx.strokeText('SkiFree', W/2, ty);
-  ctx.lineWidth = 7;
-  ctx.strokeStyle = '#fff';
-  ctx.strokeText('SkiFree', W/2, ty);
-  const tg = ctx.createLinearGradient(0, ty - 40, 0, ty + 40);
-  tg.addColorStop(0, '#82cfff');
-  tg.addColorStop(0.5, '#2196f3');
-  tg.addColorStop(1, '#0d47a1');
-  ctx.fillStyle = tg;
-  ctx.fillText('SkiFree', W/2, ty);
-  ctx.restore();
+  ctx.font = 'italic bold 92px Georgia, "Times New Roman", serif';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#2020c0';
+  ctx.fillText('Ski', W/2 + 10, 130);
+  ctx.font = 'italic bold 64px "Brush Script MT", "Comic Sans MS", cursive';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#b0a000';
+  ctx.fillText('free', W/2 + 14, 150);
 
-  drawText('the mountain is calling', W/2, H/2 - 46 + bob, 17, '#a8d4f5', 'center',
-    { weight: 'normal', shadow: false });
+  drawText('a 90s tribute · version 19.90', W/2, 200, 13, '#800000', 'center', 'normal');
+  const blink = Math.floor(globalTime * 2) % 2 === 0;
+  if (blink) drawText('PRESS ANY KEY TO START', W/2, 236, 17, '#000');
 
-  // Pulsing prompt
-  const pulse = 0.6 + 0.4 * Math.sin(globalTime * 4);
-  drawText('press any key or tap to start', W/2, H/2 + 16, 20,
-    `rgba(255,255,255,${pulse})`, 'center', { shadow: false });
+  // cast on display
+  sprite(YETI_1, W/2 - 190, 420, 3);
+  sprite(SKIER_DOWN, W/2 - 60, 400, 2);
+  sprite(UFO_1, W/2 + 40, 380, 2);
+  sprite(DINO_1, W/2 + 150, 415, 2);
+  sprite(BISON_1, W/2 + 250, 405, 2);
 
-  // Controls card
-  ctx.fillStyle = 'rgba(255,255,255,0.09)';
-  rr(W/2 - 180, H/2 + 48, 360, 108, 16);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-  rr(W/2 - 180, H/2 + 48, 360, 108, 16);
-  ctx.stroke();
-  drawText('CONTROLS', W/2, H/2 + 68, 12, '#82cfff', 'center', { shadow: false });
-  drawText('← →  /  A D   steer', W/2, H/2 + 92, 14, '#e3f2fd', 'center', { shadow: false });
-  drawText('↑ / W  brake      ↓ / S  tuck & go fast', W/2, H/2 + 114, 14, '#e3f2fd', 'center', { shadow: false });
-  drawText('mouse or touch also steers', W/2, H/2 + 136, 13, '#90b8d8', 'center',
-    { weight: 'normal', shadow: false });
-
-  if (highScore > 0) {
-    drawText(`★ best distance: ${highScore} m`, W/2, H/2 + 182, 15, '#ffe082', 'center', { shadow: false });
-  }
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.fillRect(W/2 - 220, 450, 440, 96);
+  ctx.strokeStyle = '#000';
+  ctx.strokeRect(W/2 - 220.5, 450.5, 440, 96);
+  drawText('arrows / A D  = turn     up / W = slow', W/2, 472, 13, '#000', 'center', 'normal');
+  drawText('down / S = fast    mouse & touch work too', W/2, 492, 13, '#000', 'center', 'normal');
+  drawText('hit the yellow ramps for big air!', W/2, 512, 13, '#000', 'center', 'normal');
+  drawText('...and watch your back.', W/2, 532, 13, '#800000', 'center');
 }
 
 function drawGameOverScreen() {
-  ctx.fillStyle = 'rgba(8,20,40,0.75)';
-  ctx.fillRect(0, 0, W, H);
+  // Windows 3.1 dialog
+  const dw = 460, dh = 210;
+  const dx = W/2 - dw/2, dy = H/2 - dh/2 - 20;
 
-  // Card
-  ctx.fillStyle = 'rgba(21,54,92,0.85)';
-  rr(W/2 - 220, H/2 - 150, 440, 320, 24);
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.lineWidth = 2;
-  rr(W/2 - 220, H/2 - 150, 440, 320, 24);
-  ctx.stroke();
+  bevel(dx - 3, dy - 3, dw + 6, dh + 6);
+  // title bar
+  ctx.fillStyle = '#000080';
+  ctx.fillRect(dx, dy, dw, 26);
+  // control-menu box
+  bevel(dx + 3, dy + 3, 20, 20);
+  drawText('-', dx + 13, dy + 12, 16, '#000');
+  drawText('SkiFree', dx + dw/2, dy + 13, 15, '#fff');
 
-  const eaten = deathCause === CAUSES.EATEN;
-  const title = eaten ? 'YOU GOT EATEN!' : 'WIPEOUT!';
-  ctx.save();
-  ctx.font = `bold 42px ${FONT}`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = eaten ? '#7f1d1d' : '#0d3a66';
-  ctx.strokeText(title, W/2, H/2 - 100);
-  ctx.fillStyle = eaten ? '#ff8a80' : '#ffcc80';
-  ctx.fillText(title, W/2, H/2 - 100);
-  ctx.restore();
-
-  drawText(`Distance: ${distance} m`, W/2, H/2 - 40, 26, '#fff', 'center', { shadow: false });
-
+  drawText(endMsg || 'Game over!', W/2, dy + 62, 17, '#000');
+  drawText(`Distance: ${distance} m`, W/2, dy + 95, 15, '#000', 'center', 'normal');
   if (distance >= highScore && distance > 0) {
-    const pulse = 0.7 + 0.3 * Math.sin(globalTime * 5);
-    drawText('★ NEW BEST! ★', W/2, H/2, 22, `rgba(105,240,174,${pulse})`, 'center', { shadow: false });
-  } else if (highScore > 0) {
-    drawText(`Best: ${highScore} m`, W/2, H/2, 17, '#ffe082', 'center', { shadow: false });
+    drawText('*** NEW BEST! ***', W/2, dy + 120, 14, '#800000');
+  } else {
+    drawText(`Best: ${highScore || 0} m`, W/2, dy + 120, 14, '#404040', 'center', 'normal');
   }
 
-  drawButton(RESTART_BTN, 'RESTART  (R)');
+  // Restart button
+  const b = RESTART_BTN;
+  bevel(b.x, b.y, b.w, b.h);
+  drawText('Restart', b.x + b.w/2, b.y + b.h/2 + 1, 15, '#000');
+  drawText('(or press R / F2)', W/2, b.y + b.h + 18, 12, '#404040', 'center', 'normal');
 }
 
 // ─── Main Draw ───────────────────────────────────────────────────────────────
-function draw(dt) {
-  ctx.save();
-  if (shake > 0.3) {
-    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
-  }
+function draw() {
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
 
-  drawBackground();
+  drawBumps();
   drawTrail();
+  drawLift();
 
   const sorted = [...obstacles].sort((a, b) => a.worldY - b.worldY);
-
-  // Obstacles behind the skier (up-slope)
-  for (const obs of sorted) {
-    if (obs.worldY <= worldY) drawObstacle(obs);
-  }
-
-  const crashed = gameState === STATES.DEAD && deathCause === CAUSES.CRASH;
-  drawSkier(skier.x, SKIER_Y, skier.vx, crashed, crashed ? deathTimer : 0);
-
-  // Obstacles ahead of the skier (down-slope) draw over — proper depth
-  for (const obs of sorted) {
-    if (obs.worldY > worldY) drawObstacle(obs);
-  }
-
-  drawYeti();
-  drawParticles();
-  drawSpeedLines();
-  drawFallingSnow(dt);
-
-  ctx.restore();
-
-  // Vignette (not shaken)
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, W, H);
+  for (const obs of sorted) if (obs.worldY <= worldY) drawObstacle(obs);
+  drawDogs();
+  drawSkier();
+  for (const obs of sorted) if (obs.worldY > worldY) drawObstacle(obs);
+  drawMonster();
 
   drawHUD();
 
   if (gameState === STATES.START)    drawStartScreen();
   if (gameState === STATES.GAMEOVER) drawGameOverScreen();
-
-  if (gameState === STATES.DEAD && deathCause === CAUSES.EATEN) {
-    const a = Math.min(deathTimer / 0.4, 0.55);
-    ctx.fillStyle = `rgba(140,10,10,${a})`;
-    ctx.fillRect(0, 0, W, H);
-    if (deathTimer > 0.5) {
-      const ca = Math.min((deathTimer - 0.5) * 3, 1);
-      drawText('CHOMP!', W/2, H/2, 64, `rgba(255,255,255,${ca})`, 'center',
-        { stroke: `rgba(127,29,29,${ca})`, strokeW: 12 });
-    }
-  }
 }
 
 // ─── Game Loop ────────────────────────────────────────────────────────────────
@@ -1296,15 +1129,13 @@ function loop(now) {
 
   if (gameState === STATES.START) {
     worldY += 90 * dt;
+    liftDist += 60 * dt;
     spawnObstacles();
-  } else if (gameState !== STATES.GAMEOVER) {
+  } else {
     update(dt);
   }
 
-  updateParticles(dt);
-  shake = Math.max(0, shake - 40 * dt);
-
-  draw(dt);
+  draw();
   requestAnimationFrame(loop);
 }
 
@@ -1315,13 +1146,17 @@ document.addEventListener('keydown', e => {
   const steerKeys = ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','KeyA','KeyD','KeyW','KeyS','Space'];
   if (steerKeys.includes(e.code)) {
     e.preventDefault();
-    mouseMode = false;  // keyboard takes over from mouse steering
+    mouseMode = false;
   }
+  if (e.code === 'F2') e.preventDefault();
 
   if (gameState === STATES.START) {
     loadHighScore();
     resetGame();
-  } else if (gameState === STATES.GAMEOVER && e.code === 'KeyR') {
+  } else if (gameState === STATES.GAMEOVER && (e.code === 'KeyR' || e.code === 'F2')) {
+    loadHighScore();
+    resetGame();
+  } else if (gameState === STATES.PLAYING && e.code === 'F2') {
     loadHighScore();
     resetGame();
   }
@@ -1334,13 +1169,13 @@ canvas.addEventListener('mousemove', e => {
   mouseX = (e.clientX - rect.left) * (W / rect.width);
   mouseMode = true;
 });
-
 canvas.addEventListener('mouseleave', () => { mouseMode = false; });
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  if (gameState === STATES.START) { loadHighScore(); resetGame(); return; }
-  if (gameState === STATES.GAMEOVER) { loadHighScore(); resetGame(); return; }
+  if (gameState === STATES.START || gameState === STATES.GAMEOVER) {
+    loadHighScore(); resetGame(); return;
+  }
   const rect = canvas.getBoundingClientRect();
   mouseX = (e.touches[0].clientX - rect.left) * (W / rect.width);
   mouseMode = true;
@@ -1357,9 +1192,7 @@ canvas.addEventListener('touchend', () => { mouseMode = false; });
 
 canvas.addEventListener('click', e => {
   if (gameState === STATES.START) {
-    loadHighScore();
-    resetGame();
-    return;
+    loadHighScore(); resetGame(); return;
   }
   if (gameState === STATES.GAMEOVER) {
     const rect = canvas.getBoundingClientRect();
@@ -1367,8 +1200,7 @@ canvas.addEventListener('click', e => {
     const cy = (e.clientY - rect.top)  * (H / rect.height);
     const b  = RESTART_BTN;
     if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
-      loadHighScore();
-      resetGame();
+      loadHighScore(); resetGame();
     }
   }
 });
@@ -1378,8 +1210,8 @@ loadHighScore();
 gameState = STATES.START;
 worldY = 0;
 worldSpeed = BASE_SPEED;
-obstacles = [];
-makeFlakes();
+obstacles = []; dogs = []; liftDist = 0;
+makeBumps();
 spawnObstacles();
 
 requestAnimationFrame(loop);
