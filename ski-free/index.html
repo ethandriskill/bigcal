@@ -391,17 +391,20 @@ const BISON_2 = BISON_1.slice(0, 7).concat([
 ]);
 
 // ─── Monster definitions ──────────────────────────────────────────────────────
+// spd = multiplier on the cruise-speed curve (the monster's own pace, NOT tied
+// to the player's actual speed — tucking with the down key can outrun them).
+// pat = patience range in seconds before it gives up. Fast chasers tire quickly.
 const MON_DEFS = {
-  yeti:   { grids: [YETI_1, YETI_2],     scale: 3, hitR: 24, spd: 0.85,
-            msg: 'The Snow Monster got you!' },
-  ufo:    { grids: [UFO_1, UFO_2],       scale: 3, hitR: 26, spd: 0.95,
-            msg: 'Abducted by a UFO!' },
-  dragon: { grids: [DRAGON_1, DRAGON_2], scale: 3, hitR: 26, spd: 0.90,
-            msg: 'Carried off by a dragon!' },
-  dino:   { grids: [DINO_1, DINO_2],     scale: 3, hitR: 25, spd: 0.85,
-            msg: 'Eaten by a dinosaur!' },
-  bison:  { grids: [BISON_1, BISON_2],   scale: 3, hitR: 24, spd: 0.92,
-            msg: 'Flipped sky-high by a bison!' }
+  yeti:   { grids: [YETI_1, YETI_2],     scale: 3, hitR: 24, spd: 0.98, pat: [18, 26],
+            name: 'the snow monster', msg: 'The Snow Monster got you!' },
+  ufo:    { grids: [UFO_1, UFO_2],       scale: 3, hitR: 26, spd: 1.03, pat: [12, 18],
+            name: 'the UFO', msg: 'Abducted by a UFO!' },
+  dragon: { grids: [DRAGON_1, DRAGON_2], scale: 3, hitR: 26, spd: 1.01, pat: [12, 18],
+            name: 'the dragon', msg: 'Carried off by a dragon!' },
+  dino:   { grids: [DINO_1, DINO_2],     scale: 3, hitR: 25, spd: 1.06, pat: [9, 14],
+            name: 'the dinosaur', msg: 'Eaten by a dinosaur!' },
+  bison:  { grids: [BISON_1, BISON_2],   scale: 3, hitR: 24, spd: 1.12, pat: [6, 9],
+            name: 'the bison', msg: 'Flipped sky-high by a bison!' }
 };
 const MON_TYPES = Object.keys(MON_DEFS);
 
@@ -533,6 +536,7 @@ const sfx = {
   whistleUp() { tone(400, .9, { type: 'sine', slideTo: 1700, vol: .15 }); },
   swoosh() { thud(.35, { vol: .2, freq: 900 }); },
   heartbeat() { thud(.12, { vol: .16, freq: 120 }); thud(.12, { vol: .16, freq: 120, delay: .22 }); },
+  escape() { [392, 494, 587, 784].forEach((f, i) => tone(f, .1, { vol: .12, delay: i * .08 })); },
   gameOver() { [440, 392, 330, 262].forEach((f, i) => tone(f, .22, { vol: .1, delay: i * .2 })); },
   best()   {
     [523, 659, 784, 1047].forEach((f, i) => tone(f, .12, { vol: .12, delay: .95 + i * .11 }));
@@ -586,6 +590,8 @@ function bevel(x, y, w, h, sunken=false) {
 let gameState, worldY, worldSpeed, playTime, distance, highScore;
 let speedAdjust = 0;   // player brake/boost, persists between frames
 let deathTimer, endMsg;
+let escapeFlash = 0, escapeMsg = '';   // "you escaped!" banner
+let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
 let obstacles, bumps, dogs;
 let trail = [];
 let keys = {}, mouseX = W/2, mouseMode = false;
@@ -617,6 +623,7 @@ function resetGame() {
   skier.x = W / 2; skier.vx = 0;
   skier.airT = 0; skier.airE = 0; skier.airPeak = 0;
   speedAdjust = 0;
+  escapeFlash = 0; monsterWarnT = 0;
   monster.active = false;
   monster.phase = 'chase';
   nextMonsterAt = 1600 + Math.random() * 1200;
@@ -755,6 +762,9 @@ function updatePlaying(dt) {
   while (trail.length > 0 && trail[0].wy < worldY - (SKIER_Y + 60)) trail.shift();
   if (trail.length > 500) trail.shift();
 
+  escapeFlash  = Math.max(0, escapeFlash - dt);
+  monsterWarnT = Math.max(0, monsterWarnT - dt);
+
   spawnObstacles();
   spawnDogMaybe(dt);
   updateDogs(dt);
@@ -783,11 +793,13 @@ function updateMonster(dt) {
       monster.phase  = 'chase';
       monster.t      = 0;
       monster.x      = Math.random() < 0.5 ? -60 : W + 60;
-      monster.worldY = worldY + (H - SKIER_Y) + 140;
-      monster.patience = 15 + Math.random() * 10;
+      monster.worldY = worldY - (SKIER_Y + 120);   // sneaks up from behind (uphill)
+      const pat = MON_DEFS[monster.type].pat;
+      monster.patience = pat[0] + Math.random() * (pat[1] - pat[0]);
       monster.animFrame = 0;
       monster.animTimer = 0;
       monster.lastBeat = 0;
+      monsterWarnT = 3.5;
       sfx.appear[monster.type]();
     }
     return;
@@ -804,8 +816,7 @@ function updateMonster(dt) {
     monster.worldY += (worldSpeed + 240) * dt;
     monster.x += monster.dir * 60 * dt;
     if (monSY > H + 120) {
-      monster.active = false;
-      nextMonsterAt = worldY + 800 + Math.random() * 1000;
+      monsterEscaped();
     }
     return;
   }
@@ -823,20 +834,36 @@ function updateMonster(dt) {
     sfx.heartbeat();
   }
 
+  // Pure pursuit at the monster's OWN pace, tied to the cruise curve rather
+  // than the player's actual speed — so tucking (down key) can outrun it.
   const dx = skier.x - monster.x;
-  const dy = SKIER_Y - monSY;
+  const dy = SKIER_Y - monSY;   // equals the world-space vertical gap
   const dist = Math.sqrt(dx*dx + dy*dy) || 1;
-  const spd = worldSpeed * def.spd + 45;
+  const cruise = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
+  const monSpd = cruise * def.spd + 30;
 
-  monster.vx     = (dx / dist) * spd * 0.5;
-  const vyWorld  = worldSpeed + (dy / dist) * spd * 0.5;
-  monster.worldY += vyWorld * dt;
+  monster.vx     = (dx / dist) * monSpd;
+  monster.worldY += (dy / dist) * monSpd * dt;
   monster.x      += monster.vx * dt;
+
+  // Outran it by a good margin? It loses the trail.
+  if (monSY < -520) {
+    monsterEscaped();
+    return;
+  }
 
   const monSYnow = monster.worldY - worldY + SKIER_Y;
   if (circleOverlap(skier.x, SKIER_Y, skier.hitR, monster.x, monSYnow, def.hitR)) {
     startCapture(monSYnow);
   }
+}
+
+function monsterEscaped() {
+  escapeMsg = `You escaped ${MON_DEFS[monster.type].name}!`;
+  escapeFlash = 3;
+  monster.active = false;
+  nextMonsterAt = worldY + 900 + Math.random() * 1100;
+  sfx.escape();
 }
 
 function startCapture(monSY) {
@@ -1287,7 +1314,7 @@ function drawStartScreen() {
   drawText('arrows / A D  = turn     up / W = slow', W/2, 472, 13, '#000', 'center', 'normal');
   drawText('down / S = fast    mouse & touch work too', W/2, 492, 13, '#000', 'center', 'normal');
   drawText('hit the yellow ramps for big air!', W/2, 512, 13, '#000', 'center', 'normal');
-  drawText('...and watch your back.', W/2, 532, 13, '#800000', 'center');
+  drawText('monsters chase you — hold ↓ and RUN!', W/2, 532, 13, '#800000', 'center');
 }
 
 function drawGameOverScreen() {
@@ -1336,6 +1363,21 @@ function draw() {
   drawMonster();
 
   drawHUD();
+
+  // "RUN!" warning while a fresh monster closes in
+  if (gameState === STATES.PLAYING && monster.active && monster.phase === 'chase' &&
+      monsterWarnT > 0 && Math.floor(monsterWarnT * 4) % 2 === 0) {
+    drawText('RUN!!  (hold ↓ to escape)', W/2, 110, 17, '#c00000');
+  }
+
+  // "you escaped!" banner
+  if (gameState === STATES.PLAYING && escapeFlash > 0) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(W/2 - 160, 96, 320, 28);
+    ctx.strokeStyle = '#000';
+    ctx.strokeRect(W/2 - 160.5, 96.5, 320, 28);
+    drawText(escapeMsg, W/2, 110, 14, '#006000');
+  }
 
   if (gameState === STATES.START)    drawStartScreen();
   if (gameState === STATES.GAMEOVER) drawGameOverScreen();
