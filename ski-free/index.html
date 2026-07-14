@@ -91,7 +91,6 @@ const LB_URL = 'https://wmzaqvpkxxiaknwucuyi.supabase.co';
 const LB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtemFxdnBreHhpYWtud3VjdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjY1MTYsImV4cCI6MjA5OTYwMjUxNn0.4i_LBJy_vfKxFsoRy-4D8cDaqnlGWpiMRZk-BLIsDnE';   // anon public key — safe to ship in the client
 function lbEnabled() { return LB_URL.startsWith('https://'); }
 
-const RESTART_BTN = { x: W/2 - 62, y: H/2 + 56, w: 124, h: 34 };
 
 // ─── 16-color palette ─────────────────────────────────────────────────────────
 const PAL = {
@@ -1642,10 +1641,19 @@ function drawLeaderboardScreen() {
   if (blink) drawText('PRESS ANY KEY TO START', W/2, H - 60, 17, '#000');
 }
 
+// Dialog geometry shared by the draw code and the click handler — the dialog
+// grows to fit the world top 10 when leaderboard data is available.
+function gameOverLayout() {
+  const hasLB = lbEnabled() && lbScores && lbScores.length > 0;
+  const dw = 460, dh = hasLB ? 520 : 210;
+  const dx = W/2 - dw/2, dy = H/2 - dh/2 - 12;
+  return { hasLB, dw, dh, dx, dy,
+    btn: { x: W/2 - 62, y: dy + dh - 58, w: 124, h: 34 } };
+}
+
 function drawGameOverScreen() {
-  // Windows 3.1 dialog
-  const dw = 460, dh = 210;
-  const dx = W/2 - dw/2, dy = H/2 - dh/2 - 20;
+  const L = gameOverLayout();
+  const { dx, dy, dw, dh } = L;
 
   bevel(dx - 3, dy - 3, dw + 6, dh + 6);
   // title bar
@@ -1656,21 +1664,57 @@ function drawGameOverScreen() {
   drawText('-', dx + 13, dy + 12, 16, '#000');
   drawText('Ski Free 2', dx + dw/2, dy + 13, 15, '#fff');
 
-  drawText(endMsg || 'Game over!', W/2, dy + 62, 17, '#000');
-  drawText(`Distance: ${distance} m`, W/2, dy + 95, 15, '#000', 'center', 'normal');
-  if (entry.rank > 0) {
-    drawText(`★ WORLD RANK #${entry.rank} — ${entry.slots.join('')} ★`, W/2, dy + 120, 14, '#b8860b');
-  } else if (distance >= highScore && distance > 0) {
-    drawText('*** NEW BEST! ***', W/2, dy + 120, 14, '#800000');
+  drawText(endMsg || 'Game over!', W/2, dy + 50, 16, '#000');
+  drawText(`Distance: ${distance} m`, W/2, dy + 76, 14, '#000', 'center', 'normal');
+
+  if (L.hasLB) {
+    // classic arcade: the hall of fame greets every defeat
+    drawText('—  WORLD TOP 10  —', W/2, dy + 106, 14, '#000080');
+    const blink = Math.floor(globalTime * 3) % 2 === 0;
+    const myInitials = entry.slots.join('');
+    for (let i = 0; i < 10; i++) {
+      const y = dy + 132 + i * 26;
+      const s = lbScores[i];
+      if (!s) {
+        drawText(`${i + 1}.`.padStart(3, ' ') + '   ---', dx + 84, y, 14, '#a0a0a0', 'left', 'normal');
+        continue;
+      }
+      const mine = entry.rank === i + 1 && s.initials === myInitials && s.distance === distance;
+      const col = mine ? '#b00000'
+        : i === 0 ? '#b8860b' : i === 1 ? '#707070' : i === 2 ? '#8b4513' : '#000';
+      if (mine && blink) drawText('►', dx + 58, y, 14, '#b00000', 'left');
+      drawText(`${i + 1}.`.padStart(3, ' '), dx + 84, y, 14, col, 'left');
+      drawText(s.initials, dx + 134, y, 14, col, 'left');
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 4]);
+      ctx.beginPath();
+      ctx.moveTo(dx + 190, y); ctx.lineTo(dx + dw - 150, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawText(`${s.distance} m`, dx + dw - 84, y, 14, col, 'right');
+    }
+    const infoY = dy + 132 + 10 * 26 + 6;
+    if (entry.rank > 0) {
+      drawText(`★ you made the board: #${entry.rank} ★`, W/2, infoY, 13, '#b8860b');
+    } else {
+      drawText(`your best: ${highScore || 0} m`, W/2, infoY, 12, '#404040', 'center', 'normal');
+    }
   } else {
-    drawText(`Best: ${highScore || 0} m`, W/2, dy + 120, 14, '#404040', 'center', 'normal');
+    if (entry.rank > 0) {
+      drawText(`★ WORLD RANK #${entry.rank} — ${entry.slots.join('')} ★`, W/2, dy + 110, 14, '#b8860b');
+    } else if (distance >= highScore && distance > 0) {
+      drawText('*** NEW BEST! ***', W/2, dy + 110, 14, '#800000');
+    } else {
+      drawText(`Best: ${highScore || 0} m`, W/2, dy + 110, 14, '#404040', 'center', 'normal');
+    }
   }
 
   // Restart button
-  const b = RESTART_BTN;
+  const b = L.btn;
   bevel(b.x, b.y, b.w, b.h);
   drawText('Restart', b.x + b.w/2, b.y + b.h/2 + 1, 15, '#000');
-  drawText('(or press R / F2)', W/2, b.y + b.h + 18, 12, '#404040', 'center', 'normal');
+  drawText('(or press R / F2)', W/2, b.y + b.h + 14, 11, '#404040', 'center', 'normal');
 }
 
 // ─── Main Draw ───────────────────────────────────────────────────────────────
@@ -1833,7 +1877,7 @@ canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const cx = (e.clientX - rect.left) * (W / rect.width);
     const cy = (e.clientY - rect.top)  * (H / rect.height);
-    const b  = RESTART_BTN;
+    const b  = gameOverLayout().btn;
     if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
       loadHighScore(); resetGame();
     }
