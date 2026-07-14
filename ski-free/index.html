@@ -394,16 +394,17 @@ const BISON_2 = BISON_1.slice(0, 7).concat([
 // spd = multiplier on the cruise-speed curve (the monster's own pace, NOT tied
 // to the player's actual speed — tucking with the down key can outrun them).
 // pat = patience range in seconds before it gives up. Fast chasers tire quickly.
+// side: ground beasts charge in from the screen edge; flyers sneak up from behind
 const MON_DEFS = {
-  yeti:   { grids: [YETI_1, YETI_2],     scale: 3, hitR: 24, spd: 0.98, pat: [18, 26],
+  yeti:   { grids: [YETI_1, YETI_2],     scale: 3, hitR: 24, spd: 0.98, pat: [18, 26], side: true,
             name: 'the snow monster', msg: 'The Snow Monster got you!' },
   ufo:    { grids: [UFO_1, UFO_2],       scale: 3, hitR: 26, spd: 1.03, pat: [12, 18],
             name: 'the UFO', msg: 'Abducted by a UFO!' },
   dragon: { grids: [DRAGON_1, DRAGON_2], scale: 3, hitR: 26, spd: 1.01, pat: [12, 18],
             name: 'the dragon', msg: 'Carried off by a dragon!' },
-  dino:   { grids: [DINO_1, DINO_2],     scale: 3, hitR: 25, spd: 1.06, pat: [9, 14],
+  dino:   { grids: [DINO_1, DINO_2],     scale: 3, hitR: 25, spd: 1.06, pat: [9, 14], side: true,
             name: 'the dinosaur', msg: 'Eaten by a dinosaur!' },
-  bison:  { grids: [BISON_1, BISON_2],   scale: 3, hitR: 24, spd: 1.12, pat: [6, 9],
+  bison:  { grids: [BISON_1, BISON_2],   scale: 3, hitR: 24, spd: 1.12, pat: [6, 9], side: true,
             name: 'the bison', msg: 'Flipped sky-high by a bison!' }
 };
 const MON_TYPES = Object.keys(MON_DEFS);
@@ -793,7 +794,13 @@ function updateMonster(dt) {
       monster.phase  = 'chase';
       monster.t      = 0;
       monster.x      = Math.random() < 0.5 ? -60 : W + 60;
-      monster.worldY = worldY - (SKIER_Y + 120);   // sneaks up from behind (uphill)
+      if (MON_DEFS[monster.type].side) {
+        // ground beasts charge in from the side, slightly upslope of the skier
+        monster.worldY = worldY - (80 + Math.random() * 120);
+      } else {
+        // flyers sneak up from behind (uphill, off the top of the screen)
+        monster.worldY = worldY - (SKIER_Y + 120);
+      }
       const pat = MON_DEFS[monster.type].pat;
       monster.patience = pat[0] + Math.random() * (pat[1] - pat[0]);
       monster.animFrame = 0;
