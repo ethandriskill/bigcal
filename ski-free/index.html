@@ -9,6 +9,7 @@
     body {
       background: #008080; /* classic 90s desktop teal */
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
       height: 100vh;
@@ -19,10 +20,19 @@
       border: 4px outset #c0c0c0;
       image-rendering: pixelated;
     }
+    .credit {
+      margin-top: 10px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      color: #c0c0c0;
+      text-decoration: none;
+    }
+    .credit:hover { color: #ffffff; text-decoration: underline; }
   </style>
 </head>
 <body>
 <canvas id="game"></canvas>
+<a class="credit" href="https://outerbloc.com" target="_blank" rel="noopener">created by outerbloc</a>
 <script>
 // ─── Canvas Setup ───────────────────────────────────────────────────────────
 const canvas = document.getElementById('game');
