@@ -51,7 +51,7 @@
 // ─── Canvas Setup ───────────────────────────────────────────────────────────
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-const W = 800, H = 600;
+const W = 800, H = 700;
 const dpr = window.devicePixelRatio || 1;
 canvas.width  = W * dpr;
 canvas.height = H * dpr;
@@ -639,16 +639,21 @@ let tiltActive = false;      // actually receiving sensor data
 let tiltRoll = 0, tiltPitch = 0;
 let baseRoll = 0, basePitch = 0, tiltCalibrated = false;
 
+let tiltDenied = false;
 function enableTilt() {
-  if (tiltEnabled || !('DeviceOrientationEvent' in window)) return;
+  if (!IS_TOUCH || tiltEnabled || !('DeviceOrientationEvent' in window)) return;
   const attach = () => {
     window.addEventListener('deviceorientation', onTilt);
     tiltEnabled = true;
   };
-  // iOS 13+ requires an explicit permission request from a user gesture
+  // iOS 13+ requires an explicit permission request from a user gesture.
+  // NOTE: iOS only honors the request from click/touchend gestures, NOT touchstart.
   if (typeof DeviceOrientationEvent.requestPermission === 'function') {
     DeviceOrientationEvent.requestPermission()
-      .then(state => { if (state === 'granted') attach(); })
+      .then(state => {
+        if (state === 'granted') attach();
+        else tiltDenied = true;
+      })
       .catch(() => {});
   } else {
     attach();
@@ -1361,6 +1366,19 @@ function drawHUD() {
   drawText(`Best   ${highScore || 0} m`, bx + 10, by + 51, 13, '#000', 'left', 'normal');
   drawText(`F2 = Restart`, bx + 10, by + 68, 12, '#606060', 'left', 'normal');
   drawText(`M  = Sound ${muted ? 'OFF' : 'ON'}`, bx + 10, by + 85, 12, '#606060', 'left', 'normal');
+
+  // Tilt status badge (touch devices only) — top-left corner
+  if (IS_TOUCH) {
+    const on = tiltActive;
+    const label = on ? 'TILT ON' : (tiltDenied ? 'TILT BLOCKED' : 'TILT OFF - TAP');
+    const bw2 = label.length * 8 + 20;
+    ctx.fillStyle = on ? 'rgba(0,110,0,0.85)' : 'rgba(150,0,0,0.8)';
+    ctx.fillRect(8, 8, bw2, 24);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(8.5, 8.5, bw2 - 1, 23);
+    drawText(label, 8 + bw2 / 2, 20, 12, '#fff');
+  }
 }
 
 // ─── Screens ─────────────────────────────────────────────────────────────────
@@ -1411,26 +1429,27 @@ function drawStartScreen() {
   if (blink) drawText('PRESS ANY KEY TO START', W/2, 242, 17, '#000');
 
   // cast on display
-  sprite(YETI_1, W/2 - 190, 420, 3);
-  sprite(SKIER_DOWN, W/2 - 60, 400, 2);
-  sprite(UFO_1, W/2 + 40, 380, 2);
-  sprite(DINO_1, W/2 + 150, 415, 2);
-  sprite(BISON_1, W/2 + 250, 405, 2);
+  const oy = H - 600;   // keep the cast + controls anchored near the bottom
+  sprite(YETI_1, W/2 - 190, 420 + oy, 3);
+  sprite(SKIER_DOWN, W/2 - 60, 400 + oy, 2);
+  sprite(UFO_1, W/2 + 40, 380 + oy, 2);
+  sprite(DINO_1, W/2 + 150, 415 + oy, 2);
+  sprite(BISON_1, W/2 + 250, 405 + oy, 2);
 
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
-  ctx.fillRect(W/2 - 220, 450, 440, 96);
+  ctx.fillRect(W/2 - 220, 450 + oy, 440, 96);
   ctx.strokeStyle = '#000';
-  ctx.strokeRect(W/2 - 220.5, 450.5, 440, 96);
+  ctx.strokeRect(W/2 - 220.5, 450.5 + oy, 440, 96);
   if (IS_TOUCH) {
-    drawText('tilt phone to steer left / right', W/2, 472, 13, '#000', 'center', 'normal');
-    drawText('tilt forward = faster    tilt back = brake', W/2, 492, 13, '#000', 'center', 'normal');
-    drawText('(or drag a finger to steer)  ·  ramps = big air!', W/2, 512, 13, '#000', 'center', 'normal');
-    drawText('monsters chase you — tilt forward and RUN!', W/2, 532, 13, '#800000', 'center');
+    drawText('tilt phone to steer left / right', W/2, 472 + oy, 13, '#000', 'center', 'normal');
+    drawText('tilt forward = faster    tilt back = brake', W/2, 492 + oy, 13, '#000', 'center', 'normal');
+    drawText('(or drag a finger to steer)  ·  ramps = big air!', W/2, 512 + oy, 13, '#000', 'center', 'normal');
+    drawText('monsters chase you — tilt forward and RUN!', W/2, 532 + oy, 13, '#800000', 'center');
   } else {
-    drawText('arrows / A D  = turn     up / W = slow', W/2, 472, 13, '#000', 'center', 'normal');
-    drawText('down / S = fast    mouse & touch work too', W/2, 492, 13, '#000', 'center', 'normal');
-    drawText('hit the yellow ramps for big air!', W/2, 512, 13, '#000', 'center', 'normal');
-    drawText('monsters chase you — hold ↓ and RUN!', W/2, 532, 13, '#800000', 'center');
+    drawText('arrows / A D  = turn     up / W = slow', W/2, 472 + oy, 13, '#000', 'center', 'normal');
+    drawText('down / S = fast    mouse & touch work too', W/2, 492 + oy, 13, '#000', 'center', 'normal');
+    drawText('hit the yellow ramps for big air!', W/2, 512 + oy, 13, '#000', 'center', 'normal');
+    drawText('monsters chase you — hold ↓ and RUN!', W/2, 532 + oy, 13, '#800000', 'center');
   }
 }
 
@@ -1571,9 +1590,11 @@ canvas.addEventListener('touchmove', e => {
   mouseMode = true;
 }, { passive: false });
 
-canvas.addEventListener('touchend', () => { mouseMode = false; });
+// iOS accepts the motion-permission request only from touchend/click gestures
+canvas.addEventListener('touchend', () => { enableTilt(); mouseMode = false; });
 
 canvas.addEventListener('click', e => {
+  enableTilt();
   if (gameState === STATES.START) {
     loadHighScore(); resetGame(); return;
   }
