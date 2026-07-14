@@ -82,7 +82,14 @@ const SPEED_RATE   = 9;
 const MAX_VX       = 280;
 const LIFT_X       = 726;
 
-const STATES = { START: 0, PLAYING: 1, CRASHED: 2, CAPTURED: 3, GAMEOVER: 4 };
+const STATES = { START: 0, PLAYING: 1, CRASHED: 2, CAPTURED: 3, GAMEOVER: 4, ENTRY: 5 };
+
+// ─── Public leaderboard (Supabase) ────────────────────────────────────────────
+// Paste your Supabase project URL and anon key here to activate the world
+// leaderboard. Leave blank and the game runs exactly as before.
+const LB_URL = '';   // e.g. 'https://abcdefgh.supabase.co'
+const LB_KEY = '';   // the "anon public" API key
+function lbEnabled() { return LB_URL.startsWith('https://'); }
 
 const RESTART_BTN = { x: W/2 - 62, y: H/2 + 56, w: 124, h: 34 };
 
@@ -631,6 +638,88 @@ let deathTimer, endMsg;
 let escapeFlash = 0, escapeMsg = '';   // "you escaped!" banner
 let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
 
+// ─── Leaderboard state ────────────────────────────────────────────────────────
+const LB_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+let lbScores = null;      // cached top-10 [{initials, distance}]
+let lbFetchedAt = 0;
+const entry = { slots: ['A','A','A'], idx: 0, submitting: false, rank: 0 };
+
+async function fetchLB(force = false) {
+  if (!lbEnabled()) return;
+  if (!force && lbScores && Date.now() - lbFetchedAt < 60000) return;
+  try {
+    const r = await fetch(
+      `${LB_URL}/rest/v1/scores?select=initials,distance&order=distance.desc&limit=10`,
+      { headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` } }
+    );
+    if (r.ok) { lbScores = await r.json(); lbFetchedAt = Date.now(); }
+  } catch (e) { /* offline / misconfigured — leaderboard stays dormant */ }
+}
+
+function qualifiesLB(d) {
+  if (!lbEnabled() || lbScores === null || d < 10) return false;
+  return lbScores.length < 10 || d > lbScores[lbScores.length - 1].distance;
+}
+
+function cycleEntryChar(dir) {
+  const i = LB_CHARS.indexOf(entry.slots[entry.idx]);
+  entry.slots[entry.idx] = LB_CHARS[(i + dir + LB_CHARS.length) % LB_CHARS.length];
+  sfx.hop();
+}
+
+// Layout for the entry screen's tap targets (slots, arrows, OK button)
+const ENTRY_UI = {
+  slotX: i => W/2 + (i - 1) * 84,
+  slotY: H/2 - 6,
+  slotW: 64, slotH: 74,
+  okBtn: { x: W/2 - 76, y: H/2 + 116, w: 152, h: 46 }
+};
+
+// Returns true if the tap was consumed by the entry UI
+function entryTap(cx, cy) {
+  if (entry.submitting) return true;
+  const u = ENTRY_UI;
+  for (let i = 0; i < 3; i++) {
+    const sx = u.slotX(i);
+    if (Math.abs(cx - sx) < u.slotW / 2 + 8) {
+      if (cy > u.slotY - u.slotH/2 - 56 && cy < u.slotY - u.slotH/2) {
+        entry.idx = i; cycleEntryChar(1); return true;    // ▲ above slot
+      }
+      if (cy > u.slotY + u.slotH/2 && cy < u.slotY + u.slotH/2 + 56) {
+        entry.idx = i; cycleEntryChar(-1); return true;   // ▼ below slot
+      }
+      if (Math.abs(cy - u.slotY) < u.slotH/2) { entry.idx = i; return true; }
+    }
+  }
+  const b = u.okBtn;
+  if (cx >= b.x && cx <= b.x + b.w && cy >= b.y && cy <= b.y + b.h) {
+    submitEntry(); sfx.start(); return true;
+  }
+  return true;   // swallow all taps on this screen
+}
+
+function submitEntry() {
+  if (entry.submitting) return;
+  entry.submitting = true;
+  const initials = entry.slots.join('');
+  try { localStorage.setItem('skifree_initials', initials); } catch (e) {}
+  const d = distance;
+  fetch(`${LB_URL}/rest/v1/scores`, {
+    method: 'POST',
+    headers: {
+      apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}`,
+      'Content-Type': 'application/json', Prefer: 'return=minimal'
+    },
+    body: JSON.stringify({ initials, distance: d })
+  }).catch(() => {}).finally(() => {
+    fetchLB(true).finally(() => {
+      entry.rank = lbScores ? lbScores.filter(s => s.distance > d).length + 1 : 0;
+      entry.submitting = false;
+      gameState = STATES.GAMEOVER;
+    });
+  });
+}
+
 // ─── Tilt controls (mobile gyroscope) ─────────────────────────────────────────
 // Roll (left/right tilt) steers; pitch (forward/back tilt) adjusts speed.
 const IS_TOUCH = 'ontouchstart' in window;
@@ -1081,10 +1170,7 @@ function updateCaptured(dt) {
   const monOff = monster.x < -90 || monster.x > W + 90 || monster.sy < -100 || monster.sy > H + 100;
   if (monster.phase === 'exit' && monOff && (type !== 'bison' || cap.y < -60)) {
     endMsg = MON_DEFS[type].msg;
-    gameState = STATES.GAMEOVER;
-    const best = saveHighScore();
-    sfx.gameOver();
-    if (best) sfx.best();
+    goGameOver();
   }
 }
 
@@ -1143,11 +1229,26 @@ function crash(what) {
 
 function updateCrashed(dt) {
   deathTimer += dt;
-  if (deathTimer > 2) {
+  if (deathTimer > 2) goGameOver();
+}
+
+// Shared end-of-run flow: local best, jingles, and the arcade initials
+// entry screen when the run makes the world top 10
+function goGameOver() {
+  const best = saveHighScore();
+  sfx.gameOver();
+  if (best) sfx.best();
+  fetchLB();
+  entry.rank = 0;
+  if (qualifiesLB(distance)) {
+    let saved = 'AAA';
+    try { saved = localStorage.getItem('skifree_initials') || 'AAA'; } catch (e) {}
+    entry.slots = (saved + 'AAA').slice(0, 3).split('');
+    entry.idx = 0;
+    entry.submitting = false;
+    gameState = STATES.ENTRY;
+  } else {
     gameState = STATES.GAMEOVER;
-    const best = saveHighScore();
-    sfx.gameOver();
-    if (best) sfx.best();
   }
 }
 
@@ -1412,6 +1513,12 @@ function makeLogo() {
 }
 
 function drawStartScreen() {
+  // Classic arcade attract mode: alternate title / world leaderboard
+  if (lbEnabled() && lbScores && lbScores.length > 0 && Math.floor(globalTime / 7) % 2 === 1) {
+    drawLeaderboardScreen();
+    return;
+  }
+
   // translucent white behind text so the attract slope shows through
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
   ctx.fillRect(W/2 - 260, 60, 520, 200);
@@ -1453,6 +1560,88 @@ function drawStartScreen() {
   }
 }
 
+// Arcade-style initials entry screen
+function drawEntryScreen() {
+  ctx.fillStyle = 'rgba(8,10,36,0.85)';
+  ctx.fillRect(0, 0, W, H);
+
+  const blink = Math.floor(globalTime * 3) % 2 === 0;
+  if (blink) drawText('*** NEW HIGH SCORE ***', W/2, H/2 - 170, 26, '#ffd54f');
+  drawText(`${distance} m`, W/2, H/2 - 130, 20, '#fff');
+  drawText('ENTER YOUR INITIALS', W/2, H/2 - 96, 16, '#82cfff');
+
+  const u = ENTRY_UI;
+  for (let i = 0; i < 3; i++) {
+    const sx = u.slotX(i);
+    const active = i === entry.idx;
+
+    // ▲ / ▼ tap arrows
+    drawText('▲', sx, u.slotY - u.slotH/2 - 26, 22, active ? '#ffd54f' : '#546e7a');
+    drawText('▼', sx, u.slotY + u.slotH/2 + 30, 22, active ? '#ffd54f' : '#546e7a');
+
+    // slot box
+    ctx.fillStyle = active ? '#102040' : '#0a1428';
+    ctx.fillRect(sx - u.slotW/2, u.slotY - u.slotH/2, u.slotW, u.slotH);
+    ctx.strokeStyle = active ? '#ffd54f' : '#37474f';
+    ctx.lineWidth = active ? 3 : 1.5;
+    ctx.strokeRect(sx - u.slotW/2, u.slotY - u.slotH/2, u.slotW, u.slotH);
+
+    drawText(entry.slots[i], sx, u.slotY + 2, 44, '#fff');
+    if (active && blink) {
+      ctx.fillStyle = '#ffd54f';
+      ctx.fillRect(sx - 18, u.slotY + u.slotH/2 - 10, 36, 4);
+    }
+  }
+
+  const b = u.okBtn;
+  ctx.fillStyle = entry.submitting ? '#455a64' : '#2e7d32';
+  ctx.fillRect(b.x, b.y, b.w, b.h);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(b.x, b.y, b.w, b.h);
+  drawText(entry.submitting ? 'SAVING...' : 'OK !', b.x + b.w/2, b.y + b.h/2 + 1, 18, '#fff');
+
+  drawText(IS_TOUCH ? 'tap arrows to change letters, then OK'
+                    : 'type or use arrows · ENTER to confirm',
+    W/2, b.y + b.h + 26, 12, '#90a4ae', 'center', 'normal');
+}
+
+// Public top-10 board, shown as the alternate attract screen
+function drawLeaderboardScreen() {
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.fillRect(W/2 - 230, 60, 460, H - 150);
+  ctx.strokeStyle = '#000';
+  ctx.strokeRect(W/2 - 230.5, 60.5, 460, H - 150);
+
+  drawText('★ TOP SKIERS — WORLD ★', W/2, 96, 20, '#b00000');
+  drawText('skifree2.com hall of fame', W/2, 122, 12, '#606060', 'center', 'normal');
+
+  const rows = lbScores || [];
+  for (let i = 0; i < 10; i++) {
+    const y = 160 + i * 34;
+    const s = rows[i];
+    const rank = `${i + 1}.`.padStart(3, ' ');
+    if (s) {
+      const medal = i === 0 ? '#b8860b' : i === 1 ? '#707070' : i === 2 ? '#8b4513' : '#000';
+      drawText(rank, W/2 - 190, y, 16, medal, 'left');
+      drawText(s.initials, W/2 - 130, y, 16, medal, 'left');
+      drawText(`${s.distance} m`, W/2 + 190, y, 16, medal, 'right');
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.setLineDash([2, 4]);
+      ctx.moveTo(W/2 - 80, y); ctx.lineTo(W/2 + 110, y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    } else {
+      drawText(`${rank}  ---            --- m`, W/2 - 190, y, 16, '#b0b0b0', 'left', 'normal');
+    }
+  }
+
+  const blink = Math.floor(globalTime * 2) % 2 === 0;
+  if (blink) drawText('PRESS ANY KEY TO START', W/2, H - 60, 17, '#000');
+}
+
 function drawGameOverScreen() {
   // Windows 3.1 dialog
   const dw = 460, dh = 210;
@@ -1469,7 +1658,9 @@ function drawGameOverScreen() {
 
   drawText(endMsg || 'Game over!', W/2, dy + 62, 17, '#000');
   drawText(`Distance: ${distance} m`, W/2, dy + 95, 15, '#000', 'center', 'normal');
-  if (distance >= highScore && distance > 0) {
+  if (entry.rank > 0) {
+    drawText(`★ WORLD RANK #${entry.rank} — ${entry.slots.join('')} ★`, W/2, dy + 120, 14, '#b8860b');
+  } else if (distance >= highScore && distance > 0) {
     drawText('*** NEW BEST! ***', W/2, dy + 120, 14, '#800000');
   } else {
     drawText(`Best: ${highScore || 0} m`, W/2, dy + 120, 14, '#404040', 'center', 'normal');
@@ -1516,6 +1707,7 @@ function draw() {
   }
 
   if (gameState === STATES.START)    drawStartScreen();
+  if (gameState === STATES.ENTRY)    drawEntryScreen();
   if (gameState === STATES.GAMEOVER) drawGameOverScreen();
 }
 
@@ -1549,7 +1741,29 @@ document.addEventListener('keydown', e => {
     mouseMode = false;
   }
   if (e.code === 'F2') e.preventDefault();
-  if (e.code === 'KeyM') { setMuted(!muted); return; }
+  if (e.code === 'KeyM' && gameState !== STATES.ENTRY) { setMuted(!muted); return; }
+
+  // Arcade initials entry
+  if (gameState === STATES.ENTRY) {
+    if (entry.submitting) return;
+    if (e.code === 'ArrowLeft')       { entry.idx = (entry.idx + 2) % 3; sfx.hop(); }
+    else if (e.code === 'ArrowRight') { entry.idx = (entry.idx + 1) % 3; sfx.hop(); }
+    else if (e.code === 'ArrowUp')    { cycleEntryChar(1); }
+    else if (e.code === 'ArrowDown')  { cycleEntryChar(-1); }
+    else if (e.code === 'Backspace')  { entry.idx = (entry.idx + 2) % 3; }
+    else if (e.code === 'Enter' || e.code === 'Space') { submitEntry(); sfx.start(); }
+    else if (/^Key([A-Z])$/.test(e.code)) {
+      entry.slots[entry.idx] = e.code.slice(3);
+      entry.idx = Math.min(entry.idx + 1, 2);
+      sfx.hop();
+    }
+    else if (/^Digit(\d)$/.test(e.code)) {
+      entry.slots[entry.idx] = e.code.slice(5);
+      entry.idx = Math.min(entry.idx + 1, 2);
+      sfx.hop();
+    }
+    return;
+  }
 
   if (gameState === STATES.START) {
     loadHighScore();
@@ -1575,6 +1789,14 @@ canvas.addEventListener('mouseleave', () => { mouseMode = false; });
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   enableTilt();   // user gesture — safe place to request iOS motion permission
+  if (gameState === STATES.ENTRY) {
+    const rect = canvas.getBoundingClientRect();
+    entryTap(
+      (e.touches[0].clientX - rect.left) * (W / rect.width),
+      (e.touches[0].clientY - rect.top)  * (H / rect.height)
+    );
+    return;
+  }
   if (gameState === STATES.START || gameState === STATES.GAMEOVER) {
     loadHighScore(); resetGame(); return;
   }
@@ -1595,6 +1817,15 @@ canvas.addEventListener('touchend', () => { enableTilt(); mouseMode = false; });
 
 canvas.addEventListener('click', e => {
   enableTilt();
+  if (gameState === STATES.ENTRY) {
+    if (IS_TOUCH) return;   // touchstart already handled it
+    const rect = canvas.getBoundingClientRect();
+    entryTap(
+      (e.clientX - rect.left) * (W / rect.width),
+      (e.clientY - rect.top)  * (H / rect.height)
+    );
+    return;
+  }
   if (gameState === STATES.START) {
     loadHighScore(); resetGame(); return;
   }
@@ -1611,6 +1842,7 @@ canvas.addEventListener('click', e => {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 loadHighScore();
+fetchLB();
 gameState = STATES.START;
 worldY = 0;
 worldSpeed = BASE_SPEED;
