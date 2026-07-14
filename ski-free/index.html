@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Ski Free 2</title>
   <meta name="description" content="Ski the endless slope, hit jumps for big air, and outrun the yeti, UFO, dragon, dinosaur, and bison. A 90s tribute game.">
   <meta property="og:title" content="Ski Free 2">
@@ -17,6 +17,7 @@
   <meta name="twitter:image" content="https://skifree2.com/og-image.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { overscroll-behavior: none; }
     body {
       background: #008080; /* classic 90s desktop teal */
       display: flex;
@@ -24,15 +25,17 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
+      height: 100dvh;   /* mobile browsers with dynamic toolbars */
       overflow: hidden;
     }
     canvas {
       display: block;
       border: 4px outset #c0c0c0;
       image-rendering: pixelated;
+      touch-action: none;   /* no scroll/zoom gestures over the game */
     }
     .credit {
-      margin-top: 10px;
+      margin-top: 8px;
       font-family: 'Courier New', Courier, monospace;
       font-size: 13px;
       color: #c0c0c0;
@@ -52,9 +55,22 @@ const W = 800, H = 600;
 const dpr = window.devicePixelRatio || 1;
 canvas.width  = W * dpr;
 canvas.height = H * dpr;
-canvas.style.width  = W + 'px';
-canvas.style.height = H + 'px';
 ctx.scale(dpr, dpr);
+
+// Fit the canvas to the viewport, preserving the 800x600 aspect ratio.
+// All input handlers scale coordinates via getBoundingClientRect, so this
+// display-size change is transparent to the game logic.
+function fitCanvas() {
+  const margin = 16, creditH = 34;
+  const availW = window.innerWidth - margin;
+  const availH = window.innerHeight - margin - creditH;
+  const scale = Math.min(availW / W, availH / H, 1);
+  canvas.style.width  = Math.round(W * scale) + 'px';
+  canvas.style.height = Math.round(H * scale) + 'px';
+}
+fitCanvas();
+window.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 100));
 
 const FONT = "'Courier New', Courier, monospace";
 
@@ -614,6 +630,50 @@ let speedAdjust = 0;   // player brake/boost, persists between frames
 let deathTimer, endMsg;
 let escapeFlash = 0, escapeMsg = '';   // "you escaped!" banner
 let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
+
+// ─── Tilt controls (mobile gyroscope) ─────────────────────────────────────────
+// Roll (left/right tilt) steers; pitch (forward/back tilt) adjusts speed.
+const IS_TOUCH = 'ontouchstart' in window;
+let tiltEnabled = false;     // listener attached (permission granted where needed)
+let tiltActive = false;      // actually receiving sensor data
+let tiltRoll = 0, tiltPitch = 0;
+let baseRoll = 0, basePitch = 0, tiltCalibrated = false;
+
+function enableTilt() {
+  if (tiltEnabled || !('DeviceOrientationEvent' in window)) return;
+  const attach = () => {
+    window.addEventListener('deviceorientation', onTilt);
+    tiltEnabled = true;
+  };
+  // iOS 13+ requires an explicit permission request from a user gesture
+  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission()
+      .then(state => { if (state === 'granted') attach(); })
+      .catch(() => {});
+  } else {
+    attach();
+  }
+}
+
+function onTilt(e) {
+  if (e.gamma == null && e.beta == null) return;
+  // Map device axes to screen roll/pitch based on current orientation
+  const angle = (screen.orientation && screen.orientation.angle != null)
+    ? screen.orientation.angle
+    : (window.orientation || 0);
+  let roll, pitch;
+  if (angle === 90)                       { roll = e.beta;   pitch = -e.gamma; }
+  else if (angle === -90 || angle === 270){ roll = -e.beta;  pitch = e.gamma;  }
+  else if (angle === 180)                 { roll = -e.gamma; pitch = -e.beta;  }
+  else                                    { roll = e.gamma;  pitch = e.beta;   }
+  tiltRoll = roll;
+  tiltPitch = pitch;
+  if (!tiltCalibrated) {
+    // First reading = neutral grip; player holds the phone however is comfy
+    baseRoll = roll; basePitch = pitch; tiltCalibrated = true;
+  }
+  tiltActive = true;
+}
 let obstacles, bumps, dogs;
 let trail = [];
 let keys = {}, mouseX = W/2, mouseMode = false;
@@ -646,6 +706,9 @@ function resetGame() {
   skier.airT = 0; skier.airE = 0; skier.airPeak = 0;
   speedAdjust = 0;
   escapeFlash = 0; monsterWarnT = 0;
+
+  // Re-zero the tilt neutral point to however the phone is held right now
+  if (tiltActive) { baseRoll = tiltRoll; basePitch = tiltPitch; }
   monster.active = false;
   monster.phase = 'chase';
   nextMonsterAt = 1600 + Math.random() * 1200;
@@ -745,6 +808,18 @@ function updatePlaying(dt) {
   const cruise = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
   if (keys['ArrowUp']   || keys['KeyW']) speedAdjust = Math.max(speedAdjust - 380 * dt, -cruise * 0.6);
   if (keys['ArrowDown'] || keys['KeyS']) speedAdjust = Math.min(speedAdjust + 320 * dt, 260);
+
+  // Tilt pitch = speed: tilt the top edge away from you to tuck, toward you to brake
+  if (tiltActive) {
+    const pitch = basePitch - tiltPitch;   // + = tilted forward
+    const DEAD = 4;
+    if (pitch > DEAD) {
+      speedAdjust = Math.min(speedAdjust + 320 * dt * clamp((pitch - DEAD) / 15, 0, 1), 260);
+    } else if (pitch < -DEAD) {
+      speedAdjust = Math.max(speedAdjust - 380 * dt * clamp((-pitch - DEAD) / 15, 0, 1), -cruise * 0.6);
+    }
+  }
+
   worldSpeed = clamp(cruise + speedAdjust, BASE_SPEED * 0.4, MAX_SPEED + 200);
 
   worldY    += worldSpeed * dt;
@@ -752,7 +827,14 @@ function updatePlaying(dt) {
   liftDist  += 60 * dt;
 
   let targetVx = 0;
-  if (mouseMode) {
+  if (tiltActive) {
+    // Tilt roll = steering, ~20 degrees for full lock with a small deadzone
+    const roll = tiltRoll - baseRoll;
+    const DEAD = 3;
+    const t = Math.abs(roll) < DEAD ? 0
+      : clamp((roll - Math.sign(roll) * DEAD) / 20, -1, 1);
+    targetVx = t * MAX_VX;
+  } else if (mouseMode) {
     const dx = mouseX - skier.x;
     targetVx = clamp(dx / 90, -1, 1) * MAX_VX;
   } else {
@@ -1339,10 +1421,17 @@ function drawStartScreen() {
   ctx.fillRect(W/2 - 220, 450, 440, 96);
   ctx.strokeStyle = '#000';
   ctx.strokeRect(W/2 - 220.5, 450.5, 440, 96);
-  drawText('arrows / A D  = turn     up / W = slow', W/2, 472, 13, '#000', 'center', 'normal');
-  drawText('down / S = fast    mouse & touch work too', W/2, 492, 13, '#000', 'center', 'normal');
-  drawText('hit the yellow ramps for big air!', W/2, 512, 13, '#000', 'center', 'normal');
-  drawText('monsters chase you — hold ↓ and RUN!', W/2, 532, 13, '#800000', 'center');
+  if (IS_TOUCH) {
+    drawText('tilt phone to steer left / right', W/2, 472, 13, '#000', 'center', 'normal');
+    drawText('tilt forward = faster    tilt back = brake', W/2, 492, 13, '#000', 'center', 'normal');
+    drawText('(or drag a finger to steer)  ·  ramps = big air!', W/2, 512, 13, '#000', 'center', 'normal');
+    drawText('monsters chase you — tilt forward and RUN!', W/2, 532, 13, '#800000', 'center');
+  } else {
+    drawText('arrows / A D  = turn     up / W = slow', W/2, 472, 13, '#000', 'center', 'normal');
+    drawText('down / S = fast    mouse & touch work too', W/2, 492, 13, '#000', 'center', 'normal');
+    drawText('hit the yellow ramps for big air!', W/2, 512, 13, '#000', 'center', 'normal');
+    drawText('monsters chase you — hold ↓ and RUN!', W/2, 532, 13, '#800000', 'center');
+  }
 }
 
 function drawGameOverScreen() {
@@ -1395,7 +1484,7 @@ function draw() {
   // "RUN!" warning while a fresh monster closes in
   if (gameState === STATES.PLAYING && monster.active && monster.phase === 'chase' &&
       monsterWarnT > 0 && Math.floor(monsterWarnT * 4) % 2 === 0) {
-    drawText('RUN!!  (hold ↓ to escape)', W/2, 110, 17, '#c00000');
+    drawText(IS_TOUCH ? 'RUN!!  (tilt forward to escape)' : 'RUN!!  (hold ↓ to escape)', W/2, 110, 17, '#c00000');
   }
 
   // "you escaped!" banner
@@ -1466,6 +1555,7 @@ canvas.addEventListener('mouseleave', () => { mouseMode = false; });
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  enableTilt();   // user gesture — safe place to request iOS motion permission
   if (gameState === STATES.START || gameState === STATES.GAMEOVER) {
     loadHighScore(); resetGame(); return;
   }
