@@ -2,7 +2,7 @@ name: Deploy Ski Free 2 to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [claude/yearly-calendar-app-3XUBJ]   # repo default branch
     paths:
       - 'ski-free/**'
       - '.github/workflows/deploy-skifree.yml'
