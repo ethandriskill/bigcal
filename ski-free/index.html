@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkiFree</title>
+  <title>Ski Free 2</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -54,7 +54,7 @@ const PAL = {
   K: '#000000', W: '#ffffff', G: '#c0c0c0', D: '#808080', S: '#404040',
   R: '#ff0000', r: '#900000', Y: '#ffff00', y: '#b0a000', O: '#ff8000',
   B: '#0000e0', b: '#0080ff', C: '#00e8e8', P: '#e000e0', p: '#800080',
-  F: '#ffcc99', N: '#00a800', L: '#00e800', n: '#006000',
+  F: '#f0c060', N: '#00a800', L: '#00e800', n: '#006000',
   T: '#a05a2c', t: '#6b3a18'
 };
 
@@ -78,58 +78,58 @@ function sprite(grid, x, y, s, flip=false) {
 
 // ─── Sprites ──────────────────────────────────────────────────────────────────
 const SKIER_DOWN = [
-  '..WW........',
-  '...RRRR.....',
-  '....RRR.....',
-  '....FFFF....',
-  '....FFFF....',
-  '...PPPPPP...',
-  '..PPPPPPPP..',
-  '.K.PPPPPP.K.',
-  '.K.PPPPPP.K.',
-  '.K..PPPP..K.',
-  '.K..BBBB..K.',
-  '.K..BBBB..K.',
-  '....B..B....',
-  '....B..B....',
-  '...bb..bb...',
-  '...bb..bb...',
-  '...bb..bb...'
+  '....RRR...KB.',
+  '...RRRRRKK...',
+  '....RRR......',
+  '....FFFF.....',
+  '....FFFF.....',
+  '...PPPPPP....',
+  '..BPPPPPPB...',
+  '.K.PPPPPP.K..',
+  '.K.PPPPPP.K..',
+  '.K..PPPP..K..',
+  '.K..BBBB..K..',
+  '.K..BBBB..K..',
+  '....B..B.....',
+  '....B..B.....',
+  '...YY..YY....',
+  '...YY..YY....',
+  '...YY..YY....'
 ];
 
 const SKIER_TURN = [   // facing left; flip for right
-  '.......WW....',
-  '.....RRRR....',
-  '......RRR....',
+  '.....RRR..KB.',
+  '....RRRRRK...',
+  '.....RRR.....',
   '.....FFFF....',
   '.....FFFF....',
   '....PPPPPP...',
-  '...PPPPPPPP..',
+  '...BPPPPPPB..',
   '...PPPPPPPP..',
   '..K.PPPPPP.K.',
   '..K..PPPP..K.',
   '..K..BBBB..K.',
   '.....BBBB....',
   '.....BB......',
-  '....bbb......',
-  '...bbb.......',
-  '..bbb........',
-  '.bbb.........'
+  '....YYY......',
+  '...YYY.......',
+  '..YYY........',
+  '.YYY.........'
 ];
 
 const SKIER_CRASH = [
-  '.....WW..R....',
+  '.....KB..R....',
   '........RRR...',
   '....FFFF.RR...',
   '....FFFF......',
   '...PPPPPP.....',
   '..PPPPPPPP....',
-  '.bb.PPPP..bb..',
-  '..bb.BB..bb...',
-  '...bbbBbbb....',
-  '....bbbbb.....',
-  '...bb...bb....',
-  '..bb.....bb...'
+  '.YY.PPPP..YY..',
+  '..YY.BB..YY...',
+  '...YYYBYYY....',
+  '....YYYYY.....',
+  '...YY...YY....',
+  '..YY.....YY...'
 ];
 
 const TREE_BUSHY = [
@@ -262,36 +262,43 @@ const DOG_2 = [
   '..T...T..T..',
   '.KK..KK..KK.'
 ];
+const DOG_GRAY = DOG_1.map(r => r.replace(/T/g, 'D'));   // the title-screen mascot
 
 // ─── Monster sprites ──────────────────────────────────────────────────────────
 const YETI_1 = [
-  '..KK.........KK..',
-  '.K.............K.',
-  '.K..KKKKKKKK..K..',
-  '....KDDDDDDK.....',
-  '....KDRDDRDK.....',
-  '....KDDDDDDK.....',
-  '....KDWWWWDK.....',
-  '....KKDDDDKK.....',
-  '.....GGGGGG......',
-  '....GGGGGGGG.....',
-  '...GGGWWWWGGG....',
-  '...GGWWWWWWGG....',
-  '..GGGWWWWWWGGG...',
-  '..GGGWWWWWWGGG...',
-  '..GGGWWWWWWGGG...',
-  '...GGWWWWWWGG....',
-  '...GGGWWWWGGG....',
-  '....GGGGGGGG.....',
-  '.....GGGGGG......',
-  '.....K....K......',
-  '....K......K.....',
-  '...KK......KK....'
+  'K.K.K.........K.K.K',
+  '.KKK...........KKK.',
+  '..K.............K..',
+  '..K....G...G....K..',
+  '..K...GGGGGGG...K..',
+  '...K..GKKKKKG..K...',
+  '...K..GKRKRKG..K...',
+  '....K.GKKKKKG.K....',
+  '....K.GYKYKYG.K....',
+  '.....KGYYYYYGK.....',
+  '......GGGGGGG......',
+  '.....KKGGGGGKK.....',
+  '....KGGGGGGGGGK....',
+  '...KGGGGGGGGGGGK...',
+  '...KGGGGGGGGGGGK...',
+  '...KGGGGGGGGGGGK...',
+  '...KGGGGGGGGGGGK...',
+  '...KGGGGGGGGGGGK...',
+  '....KGGGGGGGGGK....',
+  '.....KGGGGGGGK.....',
+  '......K.....K......',
+  '......K.....K......',
+  '.....KK.....KK.....',
+  '....K..K...K..K....'
 ];
-const YETI_2 = YETI_1.slice(0, 19).concat([
-  '.....K....K......',
-  '.....K.....K.....',
-  '....KK.....KK....'
+const YETI_2 = [
+  '.K.K.K.......K.K.K.',
+  '..KKK.........KKK..'
+].concat(YETI_1.slice(2, 20)).concat([
+  '......K.....K......',
+  '.....K.......K.....',
+  '....KK.......KK....',
+  '...K..K.....K..K...'
 ]);
 
 const UFO_1 = [
@@ -577,6 +584,7 @@ function bevel(x, y, w, h, sunken=false) {
 
 // ─── Game State ──────────────────────────────────────────────────────────────
 let gameState, worldY, worldSpeed, playTime, distance, highScore;
+let speedAdjust = 0;   // player brake/boost, persists between frames
 let deathTimer, endMsg;
 let obstacles, bumps, dogs;
 let trail = [];
@@ -608,6 +616,7 @@ function resetGame() {
   deathTimer = 0; endMsg = '';
   skier.x = W / 2; skier.vx = 0;
   skier.airT = 0; skier.airE = 0; skier.airPeak = 0;
+  speedAdjust = 0;
   monster.active = false;
   monster.phase = 'chase';
   nextMonsterAt = 1600 + Math.random() * 1200;
@@ -701,7 +710,14 @@ function update(dt) {
 
 function updatePlaying(dt) {
   playTime  += dt;
-  worldSpeed = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
+
+  // Cruise speed climbs over time; up/down adjust a persistent offset on top,
+  // so braking actually holds instead of being recomputed away next frame.
+  const cruise = Math.min(BASE_SPEED + playTime * SPEED_RATE, MAX_SPEED);
+  if (keys['ArrowUp']   || keys['KeyW']) speedAdjust = Math.max(speedAdjust - 380 * dt, -cruise * 0.6);
+  if (keys['ArrowDown'] || keys['KeyS']) speedAdjust = Math.min(speedAdjust + 320 * dt, 260);
+  worldSpeed = clamp(cruise + speedAdjust, BASE_SPEED * 0.4, MAX_SPEED + 200);
+
   worldY    += worldSpeed * dt;
   distance   = Math.floor(worldY * 0.1);
   liftDist  += 60 * dt;
@@ -713,8 +729,6 @@ function updatePlaying(dt) {
   } else {
     if (keys['ArrowLeft']  || keys['KeyA']) targetVx = -MAX_VX;
     if (keys['ArrowRight'] || keys['KeyD']) targetVx =  MAX_VX;
-    if (keys['ArrowUp']    || keys['KeyW']) worldSpeed = Math.max(worldSpeed - 80*dt, BASE_SPEED * 0.6);
-    if (keys['ArrowDown']  || keys['KeyS']) worldSpeed = Math.min(worldSpeed + 60*dt, MAX_SPEED);
   }
 
   const accel = 700;
@@ -890,7 +904,7 @@ function updateCaptured(dt) {
       // lunges and flips the skier skyward
       monster.x += dir * -30 * dt;   // small lunge toward skier
       if (t > 0.45 && cap.vy === 0) {
-        cap.vy = -420;               // launch!
+        cap.vy = -320;               // launch! (slower ascent = more hang time)
         sfx.whistleUp();
       }
       if (t > 0.55) beginExit(dir * 210, 90);
@@ -917,7 +931,7 @@ function updateCaptured(dt) {
   if (type === 'bison' && cap.vy !== 0) {
     cap.y += cap.vy * dt;
     cap.x += dir * 40 * dt;
-    cap.rot += 9 * dt;
+    cap.rot += 21 * dt;    // ~3 full flips on the way off the top of the screen
   }
 
   // done when everyone is off screen (the skier rides with the monster,
@@ -1213,6 +1227,35 @@ function drawHUD() {
 }
 
 // ─── Screens ─────────────────────────────────────────────────────────────────
+// Pixelated logo: text rendered small, scaled up 2x with smoothing off
+let logoCanvas = null;
+function makeLogo() {
+  const lw = 250, lh = 78;
+  logoCanvas = document.createElement('canvas');
+  logoCanvas.width = lw; logoCanvas.height = lh;
+  const o = logoCanvas.getContext('2d');
+  o.textBaseline = 'middle';
+  o.lineJoin = 'round';
+  // "Ski" — blue italic serif with green outline
+  o.font = 'italic bold 54px Georgia, "Times New Roman", serif';
+  o.strokeStyle = '#00c000';
+  o.lineWidth = 5;
+  o.strokeText('Ski', 6, 38);
+  o.fillStyle = '#2020d0';
+  o.fillText('Ski', 6, 38);
+  // "free" — olive script, hanging low
+  o.font = 'italic bold 42px "Brush Script MT", "Segoe Script", cursive';
+  o.fillStyle = '#909000';
+  o.fillText('free', 104, 54);
+  // "2" — big red with green outline
+  o.font = 'italic bold 52px Georgia, serif';
+  o.strokeStyle = '#00c000';
+  o.lineWidth = 5;
+  o.strokeText('2', 198, 36);
+  o.fillStyle = '#ff0000';
+  o.fillText('2', 198, 36);
+}
+
 function drawStartScreen() {
   // translucent white behind text so the attract slope shows through
   ctx.fillStyle = 'rgba(255,255,255,0.82)';
@@ -1220,20 +1263,15 @@ function drawStartScreen() {
   ctx.strokeStyle = '#000';
   ctx.strokeRect(W/2 - 260.5, 60.5, 520, 200);
 
-  // logo: "Ski" blue serif italic + "free" scripty yellow
-  ctx.textBaseline = 'middle';
-  ctx.font = 'italic bold 92px Georgia, "Times New Roman", serif';
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#2020c0';
-  ctx.fillText('Ski', W/2 + 10, 130);
-  ctx.font = 'italic bold 64px "Brush Script MT", "Comic Sans MS", cursive';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#b0a000';
-  ctx.fillText('free', W/2 + 14, 150);
+  if (!logoCanvas) makeLogo();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(logoCanvas, W/2 - 250, 72, 500, 156);
+  // the little mascot dog perched by the logo
+  sprite(DOG_GRAY, W/2 + 176, 118, 2, true);
 
-  drawText('a 90s tribute · version 19.90', W/2, 200, 13, '#800000', 'center', 'normal');
+  drawText('a 90s tribute · version 2.0', W/2, 214, 13, '#800000', 'center', 'normal');
   const blink = Math.floor(globalTime * 2) % 2 === 0;
-  if (blink) drawText('PRESS ANY KEY TO START', W/2, 236, 17, '#000');
+  if (blink) drawText('PRESS ANY KEY TO START', W/2, 242, 17, '#000');
 
   // cast on display
   sprite(YETI_1, W/2 - 190, 420, 3);
@@ -1264,7 +1302,7 @@ function drawGameOverScreen() {
   // control-menu box
   bevel(dx + 3, dy + 3, 20, 20);
   drawText('-', dx + 13, dy + 12, 16, '#000');
-  drawText('SkiFree', dx + dw/2, dy + 13, 15, '#fff');
+  drawText('Ski Free 2', dx + dw/2, dy + 13, 15, '#fff');
 
   drawText(endMsg || 'Game over!', W/2, dy + 62, 17, '#000');
   drawText(`Distance: ${distance} m`, W/2, dy + 95, 15, '#000', 'center', 'normal');
