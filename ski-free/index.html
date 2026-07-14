@@ -87,8 +87,8 @@ const STATES = { START: 0, PLAYING: 1, CRASHED: 2, CAPTURED: 3, GAMEOVER: 4, ENT
 // ─── Public leaderboard (Supabase) ────────────────────────────────────────────
 // Paste your Supabase project URL and anon key here to activate the world
 // leaderboard. Leave blank and the game runs exactly as before.
-const LB_URL = '';   // e.g. 'https://abcdefgh.supabase.co'
-const LB_KEY = '';   // the "anon public" API key
+const LB_URL = 'https://wmzaqvpkxxiaknwucuyi.supabase.co';
+const LB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtemFxdnBreHhpYWtud3VjdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjY1MTYsImV4cCI6MjA5OTYwMjUxNn0.4i_LBJy_vfKxFsoRy-4D8cDaqnlGWpiMRZk-BLIsDnE';   // anon public key — safe to ship in the client
 function lbEnabled() { return LB_URL.startsWith('https://'); }
 
 const RESTART_BTN = { x: W/2 - 62, y: H/2 + 56, w: 124, h: 34 };
