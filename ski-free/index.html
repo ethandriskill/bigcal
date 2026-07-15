@@ -457,7 +457,8 @@ const MON_TYPES = Object.keys(MON_DEFS);
 const CRASH_MSGS = {
   tree: 'You hit a tree!', pine: 'You hit a tree!', rock: 'You hit a rock!',
   stump: 'You hit a tree stump!', sign: 'You hit a sign!',
-  tower: 'You hit a lift tower!'
+  tower: 'You hit a lift tower!',
+  snowball: 'Flattened by a giant snowball!'
 };
 
 // ─── Sound (Web Audio, everything synthesized) ────────────────────────────────
@@ -582,6 +583,11 @@ const sfx = {
   whistleUp() { tone(400, .9, { type: 'sine', slideTo: 1700, vol: .15 }); },
   swoosh() { thud(.35, { vol: .2, freq: 900 }); },
   heartbeat() { thud(.12, { vol: .16, freq: 120 }); thud(.12, { vol: .16, freq: 120, delay: .22 }); },
+  rumble() {
+    thud(.45, { vol: .22, freq: 90 });
+    thud(.45, { vol: .2, freq: 90, delay: .35 });
+    tone(55, .8, { type: 'sawtooth', slideTo: 40, vol: .1 });
+  },
   escape() { [392, 494, 587, 784].forEach((f, i) => tone(f, .1, { vol: .12, delay: i * .08 })); },
   gameOver() { [440, 392, 330, 262].forEach((f, i) => tone(f, .22, { vol: .1, delay: i * .2 })); },
   best()   {
@@ -638,6 +644,8 @@ let speedAdjust = 0;   // player brake/boost, persists between frames
 let deathTimer, endMsg;
 let escapeFlash = 0, escapeMsg = '';   // "you escaped!" banner
 let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
+let snowballs = [], snowballTimer = 0; // anti-camping avalanche patrol
+const SNOWBALL_INTERVAL = 5;           // one giant snowball every 5 seconds
 
 // ─── Leaderboard state ────────────────────────────────────────────────────────
 const LB_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -818,6 +826,7 @@ function resetGame() {
   monster.phase = 'chase';
   nextMonsterAt = 1600 + Math.random() * 1200;
   obstacles = []; dogs = []; trail = [];
+  snowballs = []; snowballTimer = 0;
   liftDist = 0;
   makeBumps();
   spawnObstacles();
@@ -977,8 +986,44 @@ function updatePlaying(dt) {
   spawnObstacles();
   spawnDogMaybe(dt);
   updateDogs(dt);
+  updateSnowballs(dt);
   updateMonster(dt);
   checkCollisions();
+}
+
+// Giant snowballs: every 5s one drops in aimed at the skier's current lane,
+// so camping in a "safe" column (like right of the ski lift) never pays.
+function updateSnowballs(dt) {
+  snowballTimer += dt;
+  if (snowballTimer >= SNOWBALL_INTERVAL) {
+    snowballTimer = 0;
+    snowballs.push({
+      x: skier.x,
+      worldY: worldY - (SKIER_Y + 120),   // starts just above the screen
+      r: 26,
+      rot: 0,
+      whooshed: false
+    });
+    sfx.rumble();
+  }
+
+  const fall = worldSpeed + H * 0.45;   // overtakes the skier decisively
+  for (const b of snowballs) {
+    b.worldY += fall * dt;
+    b.rot += dt * 7;
+    const sy = b.worldY - worldY + SKIER_Y;
+
+    if (!b.whooshed && Math.abs(sy - SKIER_Y) < 46) {
+      b.whooshed = true;
+      thud(.25, { vol: .18, freq: 650 });
+    }
+    if (skier.airT === 0 &&
+        circleOverlap(skier.x, SKIER_Y + 6, skier.hitR, b.x, sy, b.r * 0.85)) {
+      crash('snowball');
+      return;
+    }
+  }
+  snowballs = snowballs.filter(b => b.worldY - worldY + SKIER_Y < H + 90);
 }
 
 function updateDogs(dt) {
@@ -1379,6 +1424,56 @@ function drawDogs() {
   }
 }
 
+function drawSnowballs() {
+  for (const b of snowballs) {
+    const sy = b.worldY - worldY + SKIER_Y;
+
+    // still off the top: blinking warning marker in its lane
+    if (sy < -b.r) {
+      if (Math.floor(globalTime * 6) % 2 === 0) {
+        drawText('!', b.x, 22, 26, '#c00000');
+      }
+      continue;
+    }
+    if (sy > H + b.r + 20) continue;
+
+    // powder trail behind it
+    ctx.fillStyle = 'rgba(200,220,235,0.55)';
+    for (let i = 1; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.arc(b.x + Math.sin(b.rot + i) * 4, sy - b.r - i * 12, b.r * (0.5 - i * 0.11), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // the ball
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(b.x, sy, b.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // rotating speckles sell the roll
+    ctx.fillStyle = '#b8c8d4';
+    for (let i = 0; i < 6; i++) {
+      const a = b.rot + i * (Math.PI * 2 / 6);
+      const rr2 = b.r * (0.35 + (i % 3) * 0.17);
+      ctx.fillRect(
+        Math.round(b.x + Math.cos(a) * rr2) - 3,
+        Math.round(sy + Math.sin(a) * rr2) - 3,
+        6, 6
+      );
+    }
+    // crescent shading on the lower-right
+    ctx.strokeStyle = 'rgba(150,170,190,0.7)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(b.x, sy, b.r - 4, 0.2, Math.PI * 0.45);
+    ctx.stroke();
+  }
+}
+
 function drawSkier() {
   if (gameState === STATES.CRASHED) {
     sprite(SKIER_CRASH, skier.x, SKIER_Y + 20, 2);
@@ -1759,6 +1854,7 @@ function draw() {
   drawDogs();
   drawSkier();
   for (const obs of sorted) if (obs.worldY > worldY) drawObstacle(obs);
+  drawSnowballs();
   drawMonster();
 
   drawHUD();
