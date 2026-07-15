@@ -583,7 +583,8 @@ function skiLoopUpdate() {
   const spd = worldSpeed / MAX_SPEED;
   const carve = Math.abs(skier.vx) > 120 ? 0.05 : 0;
   const grounded = skier.airT > 0 ? 0 : 1;   // silence mid-air
-  skiGain.gain.value = (0.02 + spd * 0.08 + carve) * grounded;
+  const duck = skiDuck > 0 ? 0.25 : 1;       // make room for villain entrances
+  skiGain.gain.value = (0.02 + spd * 0.08 + carve) * grounded * duck;
   skiFilter.frequency.value = 400 + spd * 900 + (carve ? 500 : 0);
 }
 
@@ -652,11 +653,11 @@ const sfx = {
     tone(1319, .4, { vol: .12, delay: .95 + 4 * .11 });
   },
   appear: {
-    yeti()   { tone(90, .6, { type: 'sawtooth', slideTo: 70, vol: .2 }); tone(115, .5, { type: 'sawtooth', slideTo: 80, vol: .14, delay: .12 }); },
-    ufo()    { for (let i = 0; i < 6; i++) tone(i % 2 ? 820 : 620, .12, { type: 'sine', vol: .11, delay: i * .11 }); },
-    dragon() { tone(700, .5, { type: 'sawtooth', slideTo: 1500, vol: .12 }); tone(500, .4, { type: 'sawtooth', slideTo: 950, vol: .1, delay: .18 }); },
-    dino()   { tone(65, .8, { type: 'sawtooth', slideTo: 150, vol: .22 }); },
-    bison()  { thud(.25, { vol: .25, freq: 150 }); thud(.25, { vol: .25, freq: 150, delay: .28 }); tone(100, .25, { type: 'sawtooth', slideTo: 55, vol: .15, delay: .12 }); }
+    yeti()   { tone(90, .8, { type: 'sawtooth', slideTo: 70, vol: .3 }); tone(115, .7, { type: 'sawtooth', slideTo: 80, vol: .22, delay: .15 }); },
+    ufo()    { for (let i = 0; i < 6; i++) tone(i % 2 ? 820 : 620, .14, { type: 'sine', vol: .18, delay: i * .12 }); },
+    dragon() { tone(700, .6, { type: 'sawtooth', slideTo: 1500, vol: .2 }); tone(500, .5, { type: 'sawtooth', slideTo: 950, vol: .16, delay: .2 }); },
+    dino()   { tone(65, 1.0, { type: 'sawtooth', slideTo: 150, vol: .32 }); thud(.3, { vol: .3, freq: 120, delay: .5 }); },
+    bison()  { thud(.3, { vol: .32, freq: 150 }); thud(.3, { vol: .32, freq: 150, delay: .28 }); tone(100, .3, { type: 'sawtooth', slideTo: 55, vol: .24, delay: .12 }); }
   },
   capture: {
     yeti()   { sfx.chomp(); },
@@ -672,35 +673,35 @@ const sfx = {
 const MON_SFX = {
   yeti: {
     every: 2.6,
-    cry()  { tone(85, .5, { type: 'sawtooth', slideTo: 65, vol: .16 }); },
+    cry()  { tone(85, .5, { type: 'sawtooth', slideTo: 65, vol: .22 }); },
     step: 0.7,
-    stepFx() { thud(.12, { vol: .12, freq: 110 }); },
-    exit() { tone(90, .45, { type: 'sawtooth', slideTo: 150, vol: .18 }); }   // triumphant rising growl
+    stepFx() { thud(.12, { vol: .15, freq: 110 }); },
+    exit() { tone(90, .45, { type: 'sawtooth', slideTo: 150, vol: .22 }); }   // triumphant rising growl
   },
   ufo: {
     every: 1.8,
-    cry()  { tone(680, .1, { type: 'sine', vol: .09 }); tone(840, .1, { type: 'sine', vol: .09, delay: .12 }); },
-    exit() { tone(1400, .6, { type: 'sine', slideTo: 250, vol: .12 }); }      // warp-away
+    cry()  { tone(680, .1, { type: 'sine', vol: .14 }); tone(840, .1, { type: 'sine', vol: .14, delay: .12 }); },
+    exit() { tone(1400, .6, { type: 'sine', slideTo: 250, vol: .16 }); }      // warp-away
   },
   dragon: {
     every: 3.5,
-    cry()  { tone(900, .35, { type: 'sawtooth', slideTo: 1500, vol: .09 }); },
+    cry()  { tone(900, .35, { type: 'sawtooth', slideTo: 1500, vol: .14 }); },
     step: 0.42,
-    stepFx() { thud(.18, { vol: .12, freq: 800 }); },                          // wing flaps
-    exit() { tone(800, .5, { type: 'sawtooth', slideTo: 1800, vol: .12 }); }  // victory screech
+    stepFx() { thud(.18, { vol: .15, freq: 800 }); },                          // wing flaps
+    exit() { tone(800, .5, { type: 'sawtooth', slideTo: 1800, vol: .16 }); }  // victory screech
   },
   dino: {
     every: 4,
-    cry()  { tone(70, .5, { type: 'sawtooth', slideTo: 130, vol: .15 }); },
+    cry()  { tone(70, .5, { type: 'sawtooth', slideTo: 130, vol: .2 }); },
     step: 0.55,
-    stepFx() { thud(.14, { vol: .2, freq: 100 }); },                           // heavy stomps
-    exit() { tone(170, .25, { type: 'square', slideTo: 60, vol: .16 }); thud(.15, { vol: .18, freq: 200, delay: .2 }); }  // gulp
+    stepFx() { thud(.14, { vol: .24, freq: 100 }); },                          // heavy stomps
+    exit() { tone(170, .25, { type: 'square', slideTo: 60, vol: .18 }); thud(.15, { vol: .2, freq: 200, delay: .2 }); }  // gulp
   },
   bison: {
     every: 3,
-    cry()  { thud(.12, { vol: .18, freq: 300 }); tone(140, .18, { type: 'sawtooth', slideTo: 80, vol: .12 }); },  // snort
+    cry()  { thud(.12, { vol: .22, freq: 300 }); tone(140, .18, { type: 'sawtooth', slideTo: 80, vol: .16 }); },  // snort
     step: 0.22,
-    stepFx() { thud(.08, { vol: .14, freq: 130 }); }                           // gallop
+    stepFx() { thud(.08, { vol: .17, freq: 130 }); }                           // gallop
     // bison exit flourish is the slide-whistle launch, already in place
   }
 };
@@ -741,6 +742,7 @@ let escapeFlash = 0, escapeMsg = '';   // "you escaped!" banner
 let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
 let snowballs = [], snowballTimer = 0; // anti-camping avalanche patrol
 const SNOWBALL_INTERVAL = 5;           // one giant snowball every 5 seconds
+let skiDuck = 0;                       // briefly quiets the ski hiss for big moments
 
 // ─── Leaderboard state ────────────────────────────────────────────────────────
 const LB_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -1078,6 +1080,7 @@ function updatePlaying(dt) {
 
   escapeFlash  = Math.max(0, escapeFlash - dt);
   monsterWarnT = Math.max(0, monsterWarnT - dt);
+  skiDuck      = Math.max(0, skiDuck - dt);
 
   spawnObstacles();
   spawnDogMaybe(dt);
@@ -1154,9 +1157,11 @@ function updateMonster(dt) {
       monster.patience = pat[0] + Math.random() * (pat[1] - pat[0]);
       monster.animFrame = 0;
       monster.animTimer = 0;
-      monster.cryT = 0;
+      // first cry lands ~1s after the entrance roar, then settles into rhythm
+      monster.cryT = MON_SFX[monster.type].every - 1;
       monster.stepT = 0;
       monsterWarnT = 3.5;
+      skiDuck = 2;                    // dip the ski hiss so the entrance cuts through
       sfx.appear[monster.type]();
     }
     return;
