@@ -98,34 +98,40 @@
     </div>
     <div class="content">
       <h1>Run a banner ad on Ski Free 2 🎿</h1>
-      <p class="sub">Your banner appears above and below the game at skifree2.com, in glorious 90s style, seen by every player on desktop and mobile.</p>
+      <p class="sub">Your banner runs for a week at skifree2.com, in glorious 90s style, seen by every player on desktop and mobile. At checkout you type a short tagline, your business name, and your link — we design the ad automatically to match the site.</p>
 
-      <p>Here's what a banner looks like:</p>
-      <div class="demo">
+      <p><strong>Premium</strong> — the larger banner at the TOP of the screen:</p>
+      <div class="demo" style="padding: 12px 14px;">
         <span class="chip">AD</span>
-        <span>💾</span>
-        <span>YOUR TAGLINE RIGHT HERE — LOOKING SHARP</span>
-        <span class="btn">Visit ▶</span>
+        <span style="font-size: 16px;">YOUR TAGLINE HERE — LOOKING SHARP SINCE 1991</span>
+        <span class="logo" style="margin-left: auto; background: #000080; color: #fff; border: 2px outset #dcdcdc; padding: 3px 10px; font-family: Georgia, serif; font-style: italic; font-size: 14px;">Your Biz Co.</span>
+      </div>
+
+      <p style="margin-top: 12px;"><strong>Basic</strong> — the slimmer banner at the BOTTOM:</p>
+      <div class="demo" style="padding: 4px 12px;">
+        <span class="chip">AD</span>
+        <span style="font-size: 12px;">YOUR TAGLINE HERE</span>
+        <span class="logo" style="margin-left: auto; background: #006000; color: #fff; border: 2px outset #dcdcdc; padding: 1px 8px; font-family: Georgia, serif; font-style: italic; font-size: 11px;">Your Biz Co.</span>
       </div>
 
       <div class="tiers">
         <div class="tier">
-          <h2>💾 Basic — AI-designed</h2>
-          <div class="price">$3 <small>/ week</small></div>
+          <h2>📟 Basic — bottom banner</h2>
+          <div class="price">$5 <small>/ week</small></div>
           <ul>
-            <li>You provide a tagline (max 60 characters) and a link URL at checkout</li>
-            <li>Your banner is auto-designed in authentic 90s Windows style</li>
-            <li>Runs 7 days in the top &amp; bottom rotation</li>
+            <li>Slim banner below the game</li>
+            <li>Tagline + business name + your link, designed automatically in 90s Windows style</li>
+            <li>Runs 7 days; shown randomly alongside other basic ads</li>
           </ul>
-          <a class="buy" id="buy-basic" href="#">Buy Basic — $3</a>
+          <a class="buy" id="buy-basic" href="#">Buy Basic — $5</a>
         </div>
         <div class="tier">
-          <h2>🎨 Premium — custom design</h2>
+          <h2>🖥️ Premium — top banner</h2>
           <div class="price">$10 <small>/ week</small></div>
           <ul>
-            <li>A human designs your banner to match the game's pixel style</li>
-            <li>Send your logo / assets after checkout, get a proof before it runs</li>
-            <li>Runs 7 days in the top &amp; bottom rotation</li>
+            <li>Larger banner above the game — first thing every player sees</li>
+            <li>Tagline + business name + your link, designed automatically in 90s Windows style</li>
+            <li>Runs 7 days; shown randomly alongside other premium ads</li>
           </ul>
           <a class="buy" id="buy-premium" href="#">Buy Premium — $10</a>
         </div>
@@ -134,8 +140,9 @@
       <div class="rules">
         <strong>The fine print:</strong> ads go live within 24 hours of payment after a quick
         human review. Family-friendly ads only — anything adult, illegal, misleading, or
-        mean-spirited is declined and fully refunded. One tagline + one URL per ad.
-        Placement rotates between the top and bottom slots alongside any other active ads.
+        mean-spirited is declined and fully refunded. One tagline (max 60 characters), one
+        business name, one link per ad. Each page load picks a random ad from the active
+        pool for its slot, so everyone's ad gets seen.
       </div>
 
       <hr>
@@ -144,9 +151,9 @@
   </div>
 
   <script>
-    // Paste your Stripe Payment Link URLs here to open the checkout flow.
-    const STRIPE_BASIC   = '';   // e.g. 'https://buy.stripe.com/xxxxx'
-    const STRIPE_PREMIUM = '';   // e.g. 'https://buy.stripe.com/yyyyy'
+    // Stripe Payment Links — checkout collects tagline, business name, and URL.
+    const STRIPE_BASIC   = 'https://buy.stripe.com/00wbJ0cgW8kr27keD0enS03';
+    const STRIPE_PREMIUM = 'https://buy.stripe.com/7sY7sK5Sy3075jwbqOenS04';
 
     function wire(id, url) {
       const el = document.getElementById(id);
