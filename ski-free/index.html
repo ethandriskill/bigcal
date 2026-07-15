@@ -309,6 +309,46 @@ const DOG_2 = [
 ];
 const DOG_GRAY = DOG_1.map(r => r.replace(/T/g, 'D'));   // the title-screen mascot
 
+// Giant snowball — two frames with shifted speckles to sell the roll
+const SNOWBALL_1 = [
+  '.....KKKKKKK.....',
+  '...KKWWWWWWWKK...',
+  '..KWWWWWGGWWWWK..',
+  '.KWWGGWWWWWWWWWK.',
+  '.KWWGGWWWWWDDWWK.',
+  'KWWWWWWWGGWWWWWWK',
+  'KWDDWWWWGGWWWWGGK',
+  'KWDDWWWWWWWWWWGGK',
+  'KWWWWWGGWWDDWWWWK',
+  'KWWWWWGGWWDDWWWWK',
+  'KWGGWWWWWWWWWWDDK',
+  'KWGGWWWWDDWWWWWWK',
+  '.KWWWWWWDDWWGGWK.',
+  '.KWDDWWWWWWWGGWK.',
+  '..KWWWWGGWWWWWK..',
+  '...KKWWWWWWWKK...',
+  '.....KKKKKKK.....'
+];
+const SNOWBALL_2 = [
+  '.....KKKKKKK.....',
+  '...KKWWWGGWWKK...',
+  '..KWWDDWWWWWWWK..',
+  '.KWWWWWWWGGWWWWK.',
+  '.KWWWWDDWWWWWWWK.',
+  'KWGGWWWWWWWWDDWWK',
+  'KWGGWWWWWWWWDDWWK',
+  'KWWWWWDDWWWWWWWWK',
+  'KWWWWWDDWWGGWWWWK',
+  'KWWWWWWWWWGGWWWWK',
+  'KWDDWWWWWWWWWWGGK',
+  'KWDDWWWGGWWWWWGGK',
+  '.KWWWWWGGWWWWWWK.',
+  '.KWWGGWWWWDDWWWK.',
+  '..KWWWWWWWDDWWK..',
+  '...KKWGGWWWWKK...',
+  '.....KKKKKKK.....'
+];
+
 // ─── Monster sprites ──────────────────────────────────────────────────────────
 const YETI_1 = [
   'K.K.K.........K.K.K',
@@ -547,6 +587,23 @@ function skiLoopUpdate() {
   skiFilter.frequency.value = 400 + spd * 900 + (carve ? 500 : 0);
 }
 
+// UFO chase hum — an eerie sustained warble while the saucer hunts you
+let humOsc = null, humLfo = null;
+function ufoHumStart() {
+  if (humOsc) return;
+  const ac = audio();
+  humOsc = ac.createOscillator(); humOsc.type = 'sine'; humOsc.frequency.value = 520;
+  humLfo = ac.createOscillator(); humLfo.frequency.value = 4;
+  const lfoGain = ac.createGain(); lfoGain.gain.value = 45;
+  humLfo.connect(lfoGain); lfoGain.connect(humOsc.frequency);
+  const g = ac.createGain(); g.gain.value = 0.045;
+  humOsc.connect(g); g.connect(master);
+  humOsc.start(); humLfo.start();
+}
+function ufoHumStop() {
+  if (humOsc) { try { humOsc.stop(); humLfo.stop(); } catch (e) {} humOsc = null; humLfo = null; }
+}
+
 // UFO tractor-beam hum (sustained, wobbly)
 let beamOsc = null, beamLfo = null;
 function beamStart() {
@@ -607,6 +664,44 @@ const sfx = {
     dragon() { sfx.swoosh(); tone(800, .4, { type: 'sawtooth', slideTo: 1600, vol: .12 }); },
     dino()   { sfx.chomp(); },
     bison()  { thud(.2, { vol: .3, freq: 200 }); }
+  }
+};
+
+// Per-villain audio identity: a signature cry on its own rhythm, movement
+// sounds matched to how it travels, and a flourish as it hauls you off.
+const MON_SFX = {
+  yeti: {
+    every: 2.6,
+    cry()  { tone(85, .5, { type: 'sawtooth', slideTo: 65, vol: .16 }); },
+    step: 0.7,
+    stepFx() { thud(.12, { vol: .12, freq: 110 }); },
+    exit() { tone(90, .45, { type: 'sawtooth', slideTo: 150, vol: .18 }); }   // triumphant rising growl
+  },
+  ufo: {
+    every: 1.8,
+    cry()  { tone(680, .1, { type: 'sine', vol: .09 }); tone(840, .1, { type: 'sine', vol: .09, delay: .12 }); },
+    exit() { tone(1400, .6, { type: 'sine', slideTo: 250, vol: .12 }); }      // warp-away
+  },
+  dragon: {
+    every: 3.5,
+    cry()  { tone(900, .35, { type: 'sawtooth', slideTo: 1500, vol: .09 }); },
+    step: 0.42,
+    stepFx() { thud(.18, { vol: .12, freq: 800 }); },                          // wing flaps
+    exit() { tone(800, .5, { type: 'sawtooth', slideTo: 1800, vol: .12 }); }  // victory screech
+  },
+  dino: {
+    every: 4,
+    cry()  { tone(70, .5, { type: 'sawtooth', slideTo: 130, vol: .15 }); },
+    step: 0.55,
+    stepFx() { thud(.14, { vol: .2, freq: 100 }); },                           // heavy stomps
+    exit() { tone(170, .25, { type: 'square', slideTo: 60, vol: .16 }); thud(.15, { vol: .18, freq: 200, delay: .2 }); }  // gulp
+  },
+  bison: {
+    every: 3,
+    cry()  { thud(.12, { vol: .18, freq: 300 }); tone(140, .18, { type: 'sawtooth', slideTo: 80, vol: .12 }); },  // snort
+    step: 0.22,
+    stepFx() { thud(.08, { vol: .14, freq: 130 }); }                           // gallop
+    // bison exit flourish is the slide-whistle launch, already in place
   }
 };
 
@@ -831,6 +926,7 @@ function resetGame() {
   makeBumps();
   spawnObstacles();
   beamStop();
+  ufoHumStop();
   skiLoopStart();
   sfx.start();
   gameState = STATES.PLAYING;
@@ -991,14 +1087,14 @@ function updatePlaying(dt) {
   checkCollisions();
 }
 
-// Giant snowballs: every 5s one drops in aimed at the skier's current lane,
-// so camping in a "safe" column (like right of the ski lift) never pays.
+// Giant snowballs: every 5s one barrels down the far-right lane — the strip
+// beside the ski lift where obstacles never spawn — so camping there never pays.
 function updateSnowballs(dt) {
   snowballTimer += dt;
   if (snowballTimer >= SNOWBALL_INTERVAL) {
     snowballTimer = 0;
     snowballs.push({
-      x: skier.x,
+      x: LIFT_X + 22 + Math.random() * (W - LIFT_X - 52),   // patrols the lift-side strip
       worldY: worldY - (SKIER_Y + 120),   // starts just above the screen
       r: 26,
       rot: 0,
@@ -1058,7 +1154,8 @@ function updateMonster(dt) {
       monster.patience = pat[0] + Math.random() * (pat[1] - pat[0]);
       monster.animFrame = 0;
       monster.animTimer = 0;
-      monster.lastBeat = 0;
+      monster.cryT = 0;
+      monster.stepT = 0;
       monsterWarnT = 3.5;
       sfx.appear[monster.type]();
     }
@@ -1085,14 +1182,19 @@ function updateMonster(dt) {
   if (monster.t > monster.patience) {
     monster.phase = 'flee';
     monster.dir = monster.x < W/2 ? -1 : 1;
+    ufoHumStop();
     return;
   }
 
-  // tension heartbeat while being hunted
-  if (monster.t - monster.lastBeat > 2.2) {
-    monster.lastBeat = monster.t;
-    sfx.heartbeat();
+  // this villain's signature voice + movement sounds while it hunts you
+  const vs = MON_SFX[monster.type];
+  monster.cryT += dt;
+  if (monster.cryT >= vs.every) { monster.cryT = 0; vs.cry(); }
+  if (vs.step) {
+    monster.stepT += dt;
+    if (monster.stepT >= vs.step) { monster.stepT = 0; vs.stepFx(); }
   }
+  if (monster.type === 'ufo') ufoHumStart();
 
   // Pure pursuit at the monster's OWN pace, tied to the cruise curve rather
   // than the player's actual speed — so tucking (down key) can outrun it.
@@ -1123,6 +1225,7 @@ function monsterEscaped() {
   escapeFlash = 3;
   monster.active = false;
   nextMonsterAt = worldY + 900 + Math.random() * 1100;
+  ufoHumStop();
   sfx.escape();
 }
 
@@ -1140,6 +1243,7 @@ function startCapture(monSY) {
   cap.lastChomp = -1;
   worldSpeed = 0;              // freeze the slope — the show plays out on a still stage
   skiLoopStop();
+  ufoHumStop();
   sfx.capture[monster.type]();
 }
 
@@ -1202,6 +1306,13 @@ function updateCaptured(dt) {
     monster.x  += monster.exitVX * dt;
     monster.sy += monster.exitVY * dt;
 
+    // keep the villain's movement sounds going as it hauls you away
+    const vs = MON_SFX[type];
+    if (vs.step) {
+      monster.stepT += dt;
+      if (monster.stepT >= vs.step) { monster.stepT = 0; vs.stepFx(); }
+    }
+
     // skier rides along per type
     if (type === 'yeti') {
       cap.x = monster.x; cap.y = monster.sy - 72; cap.rot = Math.PI / 2;
@@ -1235,6 +1346,9 @@ function beginExit(vx, vy) {
   monster.exitVX = vx;
   monster.exitVY = vy;
   beamStop();
+  const vs = MON_SFX[monster.type];
+  if (vs.exit) vs.exit();
+  monster.stepT = 0;
 }
 
 // ─── Collisions ───────────────────────────────────────────────────────────────
@@ -1280,6 +1394,7 @@ function crash(what) {
   deathTimer = 0;
   endMsg = CRASH_MSGS[what] || 'You wiped out!';
   skiLoopStop();
+  ufoHumStop();
   sfx.crash();
 }
 
@@ -1437,40 +1552,20 @@ function drawSnowballs() {
     }
     if (sy > H + b.r + 20) continue;
 
-    // powder trail behind it
-    ctx.fillStyle = 'rgba(200,220,235,0.55)';
+    // pixel powder puffs trailing behind (classic arc strokes, like the moguls)
+    ctx.strokeStyle = '#b0b0b0';
+    ctx.lineWidth = 2;
     for (let i = 1; i <= 3; i++) {
+      const px = Math.round(b.x + Math.sin(b.rot * 2 + i) * 5);
+      const py = Math.round(sy - b.r - i * 14);
       ctx.beginPath();
-      ctx.arc(b.x + Math.sin(b.rot + i) * 4, sy - b.r - i * 12, b.r * (0.5 - i * 0.11), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.arc(px, py, 8 - i * 2, Math.PI, 0);
+      ctx.stroke();
     }
 
-    // the ball
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(b.x, sy, b.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // rotating speckles sell the roll
-    ctx.fillStyle = '#b8c8d4';
-    for (let i = 0; i < 6; i++) {
-      const a = b.rot + i * (Math.PI * 2 / 6);
-      const rr2 = b.r * (0.35 + (i % 3) * 0.17);
-      ctx.fillRect(
-        Math.round(b.x + Math.cos(a) * rr2) - 3,
-        Math.round(sy + Math.sin(a) * rr2) - 3,
-        6, 6
-      );
-    }
-    // crescent shading on the lower-right
-    ctx.strokeStyle = 'rgba(150,170,190,0.7)';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(b.x, sy, b.r - 4, 0.2, Math.PI * 0.45);
-    ctx.stroke();
+    // the ball itself: chunky two-frame pixel sprite, alternating to roll
+    const frame = Math.floor(b.rot * 2) % 2 === 0 ? SNOWBALL_1 : SNOWBALL_2;
+    sprite(frame, b.x, sy + b.r, 3);
   }
 }
 
