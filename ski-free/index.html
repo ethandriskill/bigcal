@@ -42,11 +42,47 @@
       text-decoration: none;
     }
     .credit:hover { color: #ffffff; text-decoration: underline; }
+
+    /* ── 90s banner ads (top & bottom) ── */
+    .adbar { display: flex; justify-content: center; margin: 6px 0; }
+    .adbar .ad {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; justify-content: center;
+      background: #c0c0c0; border: 3px outset #e8e8e8;
+      padding: 5px 12px; text-decoration: none; color: #000;
+      font-family: 'Courier New', Courier, monospace;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.35);
+      overflow: hidden;
+    }
+    .adbar .ad:hover .ad-btn { border-style: inset; }
+    .ad-chip {
+      background: #000080; color: #fff; font-size: 10px; font-weight: bold;
+      padding: 1px 5px; border: 1px solid #fff; flex-shrink: 0;
+    }
+    .ad-icon { font-size: 20px; flex-shrink: 0; }
+    .ad-tag {
+      font-weight: bold; font-size: 14px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ad-btn {
+      background: #c0c0c0; border: 2px outset #fff; padding: 2px 9px;
+      font-size: 12px; font-weight: bold; flex-shrink: 0;
+    }
+    .ad img { display: block; height: 46px; image-rendering: pixelated; }
+    .ad-star { animation: adblink 1s steps(1) infinite; color: #b00000; flex-shrink: 0; }
+    @keyframes adblink { 50% { opacity: 0; } }
+    @media (max-width: 600px) {
+      .ad-tag { font-size: 12px; }
+      .ad-icon { font-size: 16px; }
+      .ad-btn { display: none; }
+    }
   </style>
 </head>
 <body>
+<div id="ad-top" class="adbar"></div>
 <canvas id="game"></canvas>
 <a class="credit" href="https://outerbloc.com" target="_blank" rel="noopener">created by outerbloc</a>
+<div id="ad-bottom" class="adbar"></div>
 <script>
 // ─── Canvas Setup ───────────────────────────────────────────────────────────
 const canvas = document.getElementById('game');
@@ -64,11 +100,18 @@ ctx.scale(dpr, dpr);
 // display-size change is transparent to the game logic.
 function fitCanvas() {
   const margin = 16, creditH = 34;
+  const adTop = document.getElementById('ad-top');
+  const adBot = document.getElementById('ad-bottom');
+  const adH = (adTop ? adTop.offsetHeight : 0) + (adBot ? adBot.offsetHeight : 0) + 12;
   const availW = window.innerWidth - margin;
-  const availH = window.innerHeight - margin - creditH;
+  const availH = window.innerHeight - margin - creditH - adH;
   const scale = Math.min(availW / W, availH / H, 1);
-  canvas.style.width  = Math.round(W * scale) + 'px';
+  const cssW = Math.round(W * scale);
+  canvas.style.width  = cssW + 'px';
   canvas.style.height = Math.round(H * scale) + 'px';
+  // banners track the game's rendered width
+  if (adTop) adTop.style.width = cssW + 'px';
+  if (adBot) adBot.style.width = cssW + 'px';
 }
 fitCanvas();
 window.addEventListener('resize', fitCanvas);
@@ -870,6 +913,92 @@ let monsterWarnT = 0;                  // "RUN!" hint when a monster appears
 let snowballs = [], snowballTimer = 0; // anti-camping avalanche patrol
 const SNOWBALL_INTERVAL = 5;           // one giant snowball every 5 seconds
 let skiDuck = 0;                       // briefly quiets the ski hiss for big moments
+
+// ─── Banner ads ───────────────────────────────────────────────────────────────
+// Active ads live in the same Supabase project (table: ads). Row-level security
+// only exposes rows whose run window is current, and only the owner can insert.
+// Basic-tier banners are generated here from the tagline; premium ads supply an
+// image. When nothing is booked, the house ad points at the /advertise page.
+const AD_ICONS = ['💾', '🕹️', '⭐', '🔥', '📼', '🖱️', '💿', '📟'];
+const HOUSE_AD = {
+  tagline: 'YOUR AD HERE — 90s banner ads from $3/week',
+  url: 'https://skifree2.com/advertise/',
+  tier: 'house'
+};
+let adList = [];
+
+async function fetchAds() {
+  if (lbEnabled()) {
+    try {
+      const r = await fetch(
+        `${LB_URL}/rest/v1/ads?select=tagline,url,image_url,tier,slot&order=created_at.desc`,
+        { headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` } }
+      );
+      if (r.ok) adList = await r.json();
+    } catch (e) { /* offline — house ads carry the day */ }
+  }
+  renderAds();
+}
+
+function makeAdEl(ad) {
+  const a = document.createElement('a');
+  a.className = 'ad';
+  a.target = '_blank';
+  a.rel = 'noopener sponsored';
+  a.href = /^https?:\/\//.test(ad.url) ? ad.url : HOUSE_AD.url;
+
+  if (ad.tier === 'premium' && ad.image_url && /^https?:\/\//.test(ad.image_url)) {
+    const chip = document.createElement('span');
+    chip.className = 'ad-chip';
+    chip.textContent = 'AD';
+    const img = document.createElement('img');
+    img.src = ad.image_url;
+    img.alt = ad.tagline || 'sponsor';
+    a.append(chip, img);
+    return a;
+  }
+
+  // generated 90s banner: chip, icon picked from the tagline, text, button
+  const chip = document.createElement('span');
+  chip.className = 'ad-chip';
+  chip.textContent = ad.tier === 'house' ? '★' : 'AD';
+  const icon = document.createElement('span');
+  icon.className = 'ad-icon';
+  let h = 0;
+  for (const c of (ad.tagline || '')) h = (h + c.charCodeAt(0)) % 997;
+  icon.textContent = AD_ICONS[h % AD_ICONS.length];
+  const tag = document.createElement('span');
+  tag.className = 'ad-tag';
+  tag.textContent = ad.tagline || '';                 // textContent = XSS-safe
+  const star = document.createElement('span');
+  star.className = 'ad-star';
+  star.textContent = '★';
+  const btn = document.createElement('span');
+  btn.className = 'ad-btn';
+  btn.textContent = ad.tier === 'house' ? 'Advertise ▶' : 'Visit ▶';
+  a.append(chip, icon, tag, star, btn);
+  return a;
+}
+
+function renderAds() {
+  const top = document.getElementById('ad-top');
+  const bot = document.getElementById('ad-bottom');
+  if (!top || !bot) return;
+  const pool = adList.filter(a => a && a.tagline && a.url);
+  const tick = Math.floor(Date.now() / 15000);        // rotate every 15s
+  const pick = (slotName, offset) => {
+    const slotAds = pool.filter(a => !a.slot || a.slot === 'any' || a.slot === slotName);
+    if (!slotAds.length) return HOUSE_AD;
+    return slotAds[(tick + offset) % slotAds.length];
+  };
+  top.replaceChildren(makeAdEl(pick('top', 0)));
+  bot.replaceChildren(makeAdEl(pick('bottom', 1)));
+  fitCanvas();
+}
+
+setInterval(renderAds, 15000);
+setInterval(fetchAds, 300000);   // re-check for newly booked ads every 5 min
+fetchAds();
 
 // ─── Leaderboard state ────────────────────────────────────────────────────────
 const LB_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

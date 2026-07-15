@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Advertise on Ski Free 2</title>
+  <meta name="description" content="Run a 90s-style banner ad on Ski Free 2. Basic tier from $3/week, custom-designed premium ads for $10/week.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #008080;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      justify-content: center;
+      padding: 24px 12px 48px;
+    }
+    .window {
+      width: 100%;
+      max-width: 720px;
+      background: #c0c0c0;
+      border: 3px solid;
+      border-color: #fff #404040 #404040 #fff;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+    }
+    .titlebar {
+      background: #000080;
+      color: #fff;
+      font-weight: bold;
+      padding: 5px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .titlebar .box {
+      background: #c0c0c0;
+      color: #000;
+      border: 2px solid;
+      border-color: #fff #404040 #404040 #fff;
+      width: 20px; height: 18px;
+      text-align: center; line-height: 14px;
+      font-size: 12px;
+      text-decoration: none;
+    }
+    .content { padding: 20px; color: #000; }
+    h1 { font-size: 22px; margin-bottom: 6px; }
+    p, li { font-size: 14px; line-height: 1.55; }
+    .sub { color: #404040; margin-bottom: 18px; }
+    .tiers { display: flex; gap: 16px; flex-wrap: wrap; margin: 18px 0; }
+    .tier {
+      flex: 1 1 280px;
+      background: #d4d4d4;
+      border: 2px solid;
+      border-color: #fff #404040 #404040 #fff;
+      padding: 16px;
+    }
+    .tier h2 { font-size: 17px; margin-bottom: 4px; }
+    .price { font-size: 26px; font-weight: bold; margin: 8px 0; }
+    .price small { font-size: 13px; font-weight: normal; color: #404040; }
+    .tier ul { margin: 10px 0 16px 18px; }
+    .buy {
+      display: inline-block;
+      background: #c0c0c0;
+      border: 3px outset #e8e8e8;
+      padding: 8px 22px;
+      font-family: inherit;
+      font-weight: bold;
+      font-size: 15px;
+      color: #000;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .buy:active { border-style: inset; }
+    .buy.disabled { color: #808080; cursor: not-allowed; }
+    .demo {
+      display: flex; align-items: center; gap: 10px;
+      background: #c0c0c0; border: 3px outset #e8e8e8;
+      padding: 6px 12px; margin: 10px 0 4px;
+      font-size: 14px; font-weight: bold;
+    }
+    .demo .chip { background: #000080; color: #fff; font-size: 10px; padding: 1px 5px; border: 1px solid #fff; }
+    .demo .btn { border: 2px outset #fff; padding: 2px 9px; font-size: 12px; }
+    .rules {
+      background: #ffffcc;
+      border: 1px solid #808000;
+      padding: 12px 14px;
+      margin-top: 16px;
+      font-size: 13px;
+    }
+    .back { display: inline-block; margin-top: 20px; font-size: 14px; color: #000080; }
+    hr { border: none; border-top: 2px groove #fff; margin: 18px 0; }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <span>Advertise.exe — Ski Free 2</span>
+      <a class="box" href="../">×</a>
+    </div>
+    <div class="content">
+      <h1>Run a banner ad on Ski Free 2 🎿</h1>
+      <p class="sub">Your banner appears above and below the game at skifree2.com, in glorious 90s style, seen by every player on desktop and mobile.</p>
+
+      <p>Here's what a banner looks like:</p>
+      <div class="demo">
+        <span class="chip">AD</span>
+        <span>💾</span>
+        <span>YOUR TAGLINE RIGHT HERE — LOOKING SHARP</span>
+        <span class="btn">Visit ▶</span>
+      </div>
+
+      <div class="tiers">
+        <div class="tier">
+          <h2>💾 Basic — AI-designed</h2>
+          <div class="price">$3 <small>/ week</small></div>
+          <ul>
+            <li>You provide a tagline (max 60 characters) and a link URL at checkout</li>
+            <li>Your banner is auto-designed in authentic 90s Windows style</li>
+            <li>Runs 7 days in the top &amp; bottom rotation</li>
+          </ul>
+          <a class="buy" id="buy-basic" href="#">Buy Basic — $3</a>
+        </div>
+        <div class="tier">
+          <h2>🎨 Premium — custom design</h2>
+          <div class="price">$10 <small>/ week</small></div>
+          <ul>
+            <li>A human designs your banner to match the game's pixel style</li>
+            <li>Send your logo / assets after checkout, get a proof before it runs</li>
+            <li>Runs 7 days in the top &amp; bottom rotation</li>
+          </ul>
+          <a class="buy" id="buy-premium" href="#">Buy Premium — $10</a>
+        </div>
+      </div>
+
+      <div class="rules">
+        <strong>The fine print:</strong> ads go live within 24 hours of payment after a quick
+        human review. Family-friendly ads only — anything adult, illegal, misleading, or
+        mean-spirited is declined and fully refunded. One tagline + one URL per ad.
+        Placement rotates between the top and bottom slots alongside any other active ads.
+      </div>
+
+      <hr>
+      <a class="back" href="../">◄ Back to the slopes</a>
+    </div>
+  </div>
+
+  <script>
+    // Paste your Stripe Payment Link URLs here to open the checkout flow.
+    const STRIPE_BASIC   = '';   // e.g. 'https://buy.stripe.com/xxxxx'
+    const STRIPE_PREMIUM = '';   // e.g. 'https://buy.stripe.com/yyyyy'
+
+    function wire(id, url) {
+      const el = document.getElementById(id);
+      if (url) {
+        el.href = url;
+      } else {
+        el.classList.add('disabled');
+        el.textContent += '  (coming soon)';
+        el.addEventListener('click', e => e.preventDefault());
+      }
+    }
+    wire('buy-basic', STRIPE_BASIC);
+    wire('buy-premium', STRIPE_PREMIUM);
+  </script>
+</body>
+</html>
