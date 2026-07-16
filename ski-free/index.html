@@ -948,13 +948,29 @@ async function fetchAds() {
   if (lbEnabled()) {
     try {
       const r = await fetch(
-        `${LB_URL}/rest/v1/ads?select=tagline,business,url,tier`,
+        `${LB_URL}/rest/v1/ads?select=id,tagline,business,url,tier`,
         { headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` } }
       );
       if (r.ok) adList = await r.json();
     } catch (e) { /* offline — house ads carry the day */ }
   }
   renderAds();
+}
+
+// Random pick that avoids repeating the ad shown on the previous page load
+// (remembered per device). With a single active ad it necessarily repeats.
+function pickAd(pool, house, storageKey) {
+  if (!pool.length) return house;
+  let last = null;
+  try { last = localStorage.getItem(storageKey); } catch (e) {}
+  let candidates = pool;
+  if (pool.length > 1 && last !== null) {
+    candidates = pool.filter(a => String(a.id) !== last);
+    if (!candidates.length) candidates = pool;
+  }
+  const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+  try { localStorage.setItem(storageKey, String(chosen.id)); } catch (e) {}
+  return chosen;
 }
 
 function adHash(s) {
@@ -994,8 +1010,8 @@ function renderAds() {
   const ok = a => a && a.tagline && a.url;
   const prem   = adList.filter(a => ok(a) && a.tier === 'premium');
   const basics = adList.filter(a => ok(a) && a.tier !== 'premium');
-  const topAd = prem.length   ? prem[Math.floor(Math.random() * prem.length)]     : HOUSE_TOP;
-  const botAd = basics.length ? basics[Math.floor(Math.random() * basics.length)] : HOUSE_BOTTOM;
+  const topAd = pickAd(prem, HOUSE_TOP, 'skifree_last_ad_top');
+  const botAd = pickAd(basics, HOUSE_BOTTOM, 'skifree_last_ad_bottom');
   top.replaceChildren(makeAdEl(topAd, 'premium'));
   bot.replaceChildren(makeAdEl(botAd, 'basic'));
   fitCanvas();
