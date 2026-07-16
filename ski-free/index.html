@@ -1014,7 +1014,7 @@ async function fetchLB(force = false) {
   if (!force && lbScores && Date.now() - lbFetchedAt < 60000) return;
   try {
     const r = await fetch(
-      `${LB_URL}/rest/v1/scores?select=initials,distance&order=distance.desc&limit=10`,
+      `${LB_URL}/rest/v1/scores?select=initials,distance&order=distance.desc&limit=30`,
       { headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` } }
     );
     if (r.ok) { lbScores = await r.json(); lbFetchedAt = Date.now(); }
@@ -1023,7 +1023,30 @@ async function fetchLB(force = false) {
 
 function qualifiesLB(d) {
   if (!lbEnabled() || lbScores === null || d < 10) return false;
-  return lbScores.length < 10 || d > lbScores[lbScores.length - 1].distance;
+  return lbScores.length < 30 || d > lbScores[lbScores.length - 1].distance;
+}
+
+// Time-paged leaderboard rows: 10 per page, 3s per page, with a quick
+// slide-up between pages. Returns visible rows as {idx, y} plus page info.
+// idx at or beyond the score count means "draw a filler row".
+function lbPageLayout(count, yTop, rowGap, time) {
+  const pages = Math.max(1, Math.ceil(count / 10));
+  const span = pages * 3;
+  const cyc = (((time % span) + span) % span) / 3;
+  const page = Math.floor(cyc);
+  const t = cyc - page;
+  const slide = (pages > 1 && t > 0.85) ? (t - 0.85) / 0.15 : 0;
+  const blockH = rowGap * 10;
+  const rows = [];
+  for (let k = 0; k < 10; k++) {
+    const idx = page * 10 + k;
+    if (idx < count) rows.push({ idx, y: yTop + k * rowGap - slide * blockH });
+    if (slide > 0) {
+      const nidx = ((page + 1) % pages) * 10 + k;
+      if (nidx < count) rows.push({ idx: nidx, y: yTop + k * rowGap + blockH - slide * blockH });
+    }
+  }
+  return { rows, page, pages };
 }
 
 function cycleEntryChar(dir) {
@@ -1982,7 +2005,8 @@ function makeLogo() {
 
 function drawStartScreen() {
   // Classic arcade attract mode: alternate title / world leaderboard
-  if (lbEnabled() && lbScores && lbScores.length > 0 && Math.floor(globalTime / 7) % 2 === 1) {
+  // (10s each — long enough to page through all 30 leaderboard ranks)
+  if (lbEnabled() && lbScores && lbScores.length > 0 && Math.floor(globalTime / 10) % 2 === 1) {
     drawLeaderboardScreen();
     return;
   }
@@ -2084,16 +2108,25 @@ function drawLeaderboardScreen() {
   ctx.strokeStyle = '#000';
   ctx.strokeRect(W/2 - 230.5, top + 0.5, 460, boxH);
 
-  drawText('★ TOP SKIERS — WORLD ★', W/2, top + 36, 20, '#b00000');
-  drawText('skifree2.com hall of fame', W/2, top + 62, 12, '#606060', 'center', 'normal');
+  drawText('★ TOP 30 SKIERS — WORLD ★', W/2, top + 36, 20, '#b00000');
 
-  const rows = lbScores || [];
-  for (let i = 0; i < 10; i++) {
-    const y = top + 96 + i * 30;
-    const s = rows[i];
-    const rank = `${i + 1}.`.padStart(3, ' ');
+  const scores = lbScores || [];
+  const count = Math.max(scores.length, 10);
+  const L = lbPageLayout(count, top + 96, 30, globalTime);
+  drawText(`skifree2.com hall of fame · ranks ${L.page * 10 + 1}–${Math.min((L.page + 1) * 10, count)}`,
+    W/2, top + 62, 12, '#606060', 'center', 'normal');
+
+  // clip so sliding rows never escape the panel
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(W/2 - 228, top + 80, 456, 10 * 30 + 8);
+  ctx.clip();
+  for (const r of L.rows) {
+    const y = r.y;
+    const rank = `${r.idx + 1}.`.padStart(3, ' ');
+    const s = scores[r.idx];
     if (s) {
-      const medal = i === 0 ? '#b8860b' : i === 1 ? '#707070' : i === 2 ? '#8b4513' : '#000';
+      const medal = r.idx === 0 ? '#b8860b' : r.idx === 1 ? '#707070' : r.idx === 2 ? '#8b4513' : '#000';
       drawText(rank, W/2 - 190, y, 15, medal, 'left');
       drawText(s.initials, W/2 - 130, y, 15, medal, 'left');
       drawText(`${s.distance} m`, W/2 + 190, y, 15, medal, 'right');
@@ -2108,6 +2141,7 @@ function drawLeaderboardScreen() {
       drawText(`${rank}  ---            --- m`, W/2 - 190, y, 15, '#b0b0b0', 'left', 'normal');
     }
   }
+  ctx.restore();
 
   const blink = Math.floor(globalTime * 2) % 2 === 0;
   if (blink) drawText(IS_TOUCH ? 'TAP TO START' : 'PRESS ANY KEY TO START', W/2, top + boxH - 24, 16, '#000');
@@ -2151,21 +2185,30 @@ function drawGameOverScreen() {
 
   if (L.hasLB) {
     // classic arcade: the hall of fame greets every defeat
-    drawText('—  WORLD TOP 10  —', W/2, dy + 106, 14, '#000080');
+    const scores = lbScores;
+    const count = Math.max(scores.length, 10);
+    const P = lbPageLayout(count, dy + 132, 26, globalTime);
+    drawText(`—  WORLD TOP 30 · ranks ${P.page * 10 + 1}–${Math.min((P.page + 1) * 10, count)}  —`,
+      W/2, dy + 106, 14, '#000080');
     const blink = Math.floor(globalTime * 3) % 2 === 0;
     const myInitials = entry.slots.join('');
-    for (let i = 0; i < 10; i++) {
-      const y = dy + 132 + i * 26;
-      const s = lbScores[i];
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(dx + 8, dy + 118, dw - 16, 10 * 26 + 6);
+    ctx.clip();
+    for (const r of P.rows) {
+      const y = r.y;
+      const s = scores[r.idx];
       if (!s) {
-        drawText(`${i + 1}.`.padStart(3, ' ') + '   ---', dx + 84, y, 14, '#a0a0a0', 'left', 'normal');
+        drawText(`${r.idx + 1}.`.padStart(3, ' ') + '   ---', dx + 84, y, 14, '#a0a0a0', 'left', 'normal');
         continue;
       }
-      const mine = entry.rank === i + 1 && s.initials === myInitials && s.distance === distance;
+      const mine = entry.rank === r.idx + 1 && s.initials === myInitials && s.distance === distance;
       const col = mine ? '#b00000'
-        : i === 0 ? '#b8860b' : i === 1 ? '#707070' : i === 2 ? '#8b4513' : '#000';
+        : r.idx === 0 ? '#b8860b' : r.idx === 1 ? '#707070' : r.idx === 2 ? '#8b4513' : '#000';
       if (mine && blink) drawText('►', dx + 58, y, 14, '#b00000', 'left');
-      drawText(`${i + 1}.`.padStart(3, ' '), dx + 84, y, 14, col, 'left');
+      drawText(`${r.idx + 1}.`.padStart(3, ' '), dx + 84, y, 14, col, 'left');
       drawText(s.initials, dx + 134, y, 14, col, 'left');
       ctx.strokeStyle = 'rgba(0,0,0,0.15)';
       ctx.lineWidth = 1;
@@ -2176,6 +2219,7 @@ function drawGameOverScreen() {
       ctx.setLineDash([]);
       drawText(`${s.distance} m`, dx + dw - 84, y, 14, col, 'right');
     }
+    ctx.restore();
     const infoY = dy + 132 + 10 * 26 + 6;
     if (entry.rank > 0) {
       drawText(`★ you made the board: #${entry.rank} ★`, W/2, infoY, 13, '#b8860b');
