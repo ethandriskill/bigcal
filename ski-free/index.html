@@ -34,8 +34,8 @@
       image-rendering: pixelated;
       touch-action: none;   /* no scroll/zoom gestures over the game */
     }
+    .footlinks { display: flex; gap: 10px; margin-top: 8px; align-items: center; }
     .credit {
-      margin-top: 8px;
       font-family: 'Courier New', Courier, monospace;
       font-size: 13px;
       color: #c0c0c0;
@@ -87,7 +87,11 @@
 <body>
 <div id="ad-top" class="adbar"></div>
 <canvas id="game"></canvas>
-<a class="credit" href="https://outerbloc.com" target="_blank" rel="noopener">created by outerbloc</a>
+<div class="footlinks">
+  <a class="credit" href="https://outerbloc.com" target="_blank" rel="noopener">created by outerbloc</a>
+  <span class="credit">·</span>
+  <a class="credit" href="advertise/">📢 advertise with us</a>
+</div>
 <div id="ad-bottom" class="adbar"></div>
 <script>
 // ─── Canvas Setup ───────────────────────────────────────────────────────────
