@@ -59,6 +59,7 @@
       background: #000080; color: #fff; font-size: 10px; font-weight: bold;
       padding: 1px 5px; border: 1px solid #fff; flex-shrink: 0;
     }
+    .ad-orn { flex-shrink: 0; font-size: 13px; }
     .ad-tag {
       font-weight: bold; text-align: left;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -131,7 +132,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 41;
+const APP_VERSION = 42;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
@@ -935,7 +936,26 @@ let skiDuck = 0;                       // briefly quiets the ski hiss for big mo
 // thinner BOTTOM banner. Every banner is generated in 90s Windows style from a
 // tagline (left) and a business-name "logo" block (right). One random advertiser
 // per slot per page load — refresh and you may see someone else.
-const AD_LOGO_COLORS = ['#000080', '#800080', '#006000', '#b00000', '#806000'];
+// Each customer ad gets its own Windows-98-era color theme, assigned
+// permanently from the ad's identity so a brand always keeps its look.
+const AD_THEMES = [
+  { name: 'classic',  bg: '#c0c0c0', text: '#000', border: '#e8e8e8',
+    chipBg: '#000080', chipFg: '#fff', logoBg: '#000080', logoFg: '#fff', orn: '◆', ornCol: '#000080' },
+  { name: 'titlebar', bg: 'linear-gradient(90deg,#000080,#1084d0)', text: '#fff', border: '#9cc4e4',
+    chipBg: '#fff', chipFg: '#000080', logoBg: '#c0c0c0', logoFg: '#000080', orn: '★', ornCol: '#ffff00' },
+  { name: 'desktop',  bg: '#008080', text: '#fff', border: '#40a0a0',
+    chipBg: '#c0c0c0', chipFg: '#000', logoBg: '#c0c0c0', logoFg: '#008080', orn: '●', ornCol: '#ffff80' },
+  { name: 'tooltip',  bg: '#ffffcc', text: '#000', border: '#e8e8b0',
+    chipBg: '#808000', chipFg: '#fff', logoBg: '#b00000', logoFg: '#fff', orn: '☼', ornCol: '#b00000' },
+  { name: 'plum',     bg: '#800080', text: '#fff', border: '#c060c0',
+    chipBg: '#ffff00', chipFg: '#800080', logoBg: '#ffff00', logoFg: '#800080', orn: '♦', ornCol: '#ffff00' },
+  { name: 'forest',   bg: '#006000', text: '#fff', border: '#40a040',
+    chipBg: '#c0c0c0', chipFg: '#006000', logoBg: '#ffffcc', logoFg: '#006000', orn: '♣', ornCol: '#80ff80' },
+  { name: 'maroon',   bg: '#800000', text: '#fff', border: '#c06060',
+    chipBg: '#ffcc00', chipFg: '#800000', logoBg: '#c0c0c0', logoFg: '#800000', orn: '►', ornCol: '#ffcc00' },
+  { name: 'slate',    bg: '#d4d0c8', text: '#000', border: '#f0ece4',
+    chipBg: '#404040', chipFg: '#fff', logoBg: '#404080', logoFg: '#fff', orn: '■', ornCol: '#404080' }
+];
 const HOUSE_TOP = {
   tagline: 'RENT THIS SPACE — $10 / week',
   business: 'AD SPACE AVAILABLE',
@@ -990,9 +1010,26 @@ function makeAdEl(ad, size) {
   a.rel = 'noopener sponsored';
   a.href = /^https?:\/\//.test(ad.url) ? ad.url : 'https://skifree2.com/advertise/';
 
+  // House ads keep the classic gray; each customer gets a stable unique theme
+  const theme = ad.house
+    ? AD_THEMES[0]
+    : AD_THEMES[adHash(String(ad.id ?? '') + (ad.business || '') + (ad.tagline || '')) % AD_THEMES.length];
+
+  a.style.background = theme.bg;
+  a.style.color = theme.text;
+  a.style.borderColor = theme.border;
+
   const chip = document.createElement('span');
   chip.className = 'ad-chip';
   chip.textContent = ad.house ? '★' : 'AD';
+  chip.style.background = theme.chipBg;
+  chip.style.color = theme.chipFg;
+  chip.style.borderColor = theme.chipFg;
+
+  const orn = document.createElement('span');
+  orn.className = 'ad-orn';
+  orn.textContent = theme.orn;
+  orn.style.color = theme.ornCol;
 
   const tag = document.createElement('span');
   tag.className = 'ad-tag';
@@ -1001,9 +1038,10 @@ function makeAdEl(ad, size) {
   const logo = document.createElement('span');
   logo.className = 'ad-logo';
   logo.textContent = ad.business || '';
-  logo.style.background = AD_LOGO_COLORS[adHash(ad.business) % AD_LOGO_COLORS.length];
+  logo.style.background = theme.logoBg;
+  logo.style.color = theme.logoFg;
 
-  a.append(chip, tag, logo);
+  a.append(chip, orn, tag, logo);
   return a;
 }
 
