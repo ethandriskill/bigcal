@@ -134,7 +134,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 46;
+const APP_VERSION = 47;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
@@ -1076,6 +1076,25 @@ function renderAds() {
 
 fetchAds();
 
+// ─── Traffic logging (anonymous, self-hosted in Supabase) ─────────────────────
+// One row per page view and per run started. No personal data — just a kind,
+// a coarse device type, and a timestamp. Riding the same origin the game
+// already talks to means content blockers can't eat the numbers.
+function logVisit(kind) {
+  if (!lbEnabled()) return;
+  try {
+    fetch(`${LB_URL}/rest/v1/visits`, {
+      method: 'POST',
+      headers: {
+        apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}`,
+        'Content-Type': 'application/json', Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({ kind, device: IS_TOUCH ? 'mobile' : 'desktop' })
+    }).catch(() => {});
+  } catch (e) {}
+}
+logVisit('view');
+
 // ─── Leaderboard state ────────────────────────────────────────────────────────
 const LB_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 let lbScores = null;      // cached top-10 [{initials, distance}]
@@ -1286,6 +1305,7 @@ function resetGame() {
   ufoHumStop();
   skiLoopStart();
   sfx.start();
+  logVisit('play');
   gameState = STATES.PLAYING;
 }
 

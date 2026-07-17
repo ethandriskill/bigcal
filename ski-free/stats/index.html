@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Traffic.exe — Ski Free 2</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #008080;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      justify-content: center;
+      padding: 24px 12px 48px;
+    }
+    .window {
+      width: 100%;
+      max-width: 760px;
+      background: #c0c0c0;
+      border: 3px solid;
+      border-color: #fff #404040 #404040 #fff;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.4);
+    }
+    .titlebar {
+      background: #000080;
+      color: #fff;
+      font-weight: bold;
+      padding: 5px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .titlebar .box {
+      background: #c0c0c0; color: #000;
+      border: 2px solid; border-color: #fff #404040 #404040 #fff;
+      width: 20px; height: 18px;
+      text-align: center; line-height: 14px; font-size: 12px;
+      text-decoration: none;
+    }
+    .content { padding: 20px; color: #000; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    .sub { color: #404040; font-size: 12px; margin-bottom: 16px; }
+    .tiles { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .tile {
+      flex: 1 1 150px;
+      background: #fff;
+      border: 2px inset #e8e8e8;
+      padding: 12px;
+      text-align: center;
+    }
+    .tile .num { font-size: 28px; font-weight: bold; }
+    .tile .lbl { font-size: 11px; color: #404040; margin-top: 2px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 5px 8px; text-align: right; border-bottom: 1px dotted #808080; }
+    th { background: #000080; color: #fff; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .bar {
+      display: inline-block; height: 10px;
+      background: #000080; vertical-align: middle;
+      border: 1px solid #404040;
+    }
+    .bar.play { background: #b00000; }
+    .btn {
+      display: inline-block; margin-top: 16px;
+      background: #c0c0c0; border: 3px outset #e8e8e8;
+      padding: 6px 18px; font-family: inherit; font-weight: bold;
+      font-size: 13px; color: #000; text-decoration: none; cursor: pointer;
+    }
+    .btn:active { border-style: inset; }
+    .empty { text-align: center; color: #606060; padding: 30px 0; }
+    .legend { font-size: 11px; color: #404040; margin: 8px 0 4px; }
+  </style>
+</head>
+<body>
+  <div class="window">
+    <div class="titlebar">
+      <span>Traffic.exe — Ski Free 2</span>
+      <a class="box" href="../">×</a>
+    </div>
+    <div class="content">
+      <h1>Site traffic 📈</h1>
+      <p class="sub">Page views and games played, counted by the game itself — ad-blocker-proof, no third parties. Times in your local timezone.</p>
+
+      <div class="tiles">
+        <div class="tile"><div class="num" id="t-today">–</div><div class="lbl">VIEWS TODAY</div></div>
+        <div class="tile"><div class="num" id="p-today">–</div><div class="lbl">PLAYS TODAY</div></div>
+        <div class="tile"><div class="num" id="t-week">–</div><div class="lbl">VIEWS · 7 DAYS</div></div>
+        <div class="tile"><div class="num" id="p-week">–</div><div class="lbl">PLAYS · 7 DAYS</div></div>
+        <div class="tile"><div class="num" id="t-all">–</div><div class="lbl">VIEWS · ALL TIME</div></div>
+        <div class="tile"><div class="num" id="m-pct">–</div><div class="lbl">MOBILE SHARE</div></div>
+      </div>
+
+      <div class="legend">■ views (navy) · ■ plays (red) — last 14 days</div>
+      <table id="days">
+        <thead><tr><th>Day</th><th>Views</th><th>Plays</th><th></th></tr></thead>
+        <tbody><tr><td colspan="4" class="empty">loading…</td></tbody>
+      </table>
+
+      <a class="btn" href="javascript:location.reload()">↻ Refresh</a>
+      <a class="btn" href="../">◄ Back to the slopes</a>
+    </div>
+  </div>
+
+  <script>
+    const LB_URL = 'https://wmzaqvpkxxiaknwucuyi.supabase.co';
+    const LB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndtemFxdnBreHhpYWtud3VjdXlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQwMjY1MTYsImV4cCI6MjA5OTYwMjUxNn0.4i_LBJy_vfKxFsoRy-4D8cDaqnlGWpiMRZk-BLIsDnE';
+
+    async function load() {
+      const r = await fetch(`${LB_URL}/rest/v1/traffic?select=*`, {
+        headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` }
+      });
+      if (!r.ok) {
+        document.querySelector('#days tbody').innerHTML =
+          '<tr><td colspan="4" class="empty">could not load — is the visits table set up?</td></tr>';
+        return;
+      }
+      const rows = await r.json();   // [{day, kind, device, n}]
+
+      const today = new Date().toISOString().slice(0, 10);
+      const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+
+      let tToday = 0, pToday = 0, tWeek = 0, pWeek = 0, tAll = 0, mAll = 0, allDevices = 0;
+      const byDay = {};
+      for (const x of rows) {
+        const isView = x.kind === 'view';
+        if (isView) tAll += x.n;
+        if (isView) { allDevices += x.n; if (x.device === 'mobile') mAll += x.n; }
+        if (x.day === today) { if (isView) tToday += x.n; else pToday += x.n; }
+        if (x.day >= weekAgo) { if (isView) tWeek += x.n; else pWeek += x.n; }
+        byDay[x.day] = byDay[x.day] || { views: 0, plays: 0 };
+        byDay[x.day][isView ? 'views' : 'plays'] += x.n;
+      }
+
+      const set = (id, v) => document.getElementById(id).textContent = v;
+      set('t-today', tToday); set('p-today', pToday);
+      set('t-week', tWeek);   set('p-week', pWeek);
+      set('t-all', tAll);
+      set('m-pct', allDevices ? Math.round(100 * mAll / allDevices) + '%' : '–');
+
+      const days = Object.keys(byDay).sort().reverse().slice(0, 14);
+      const max = Math.max(1, ...days.map(d => byDay[d].views));
+      const tbody = document.querySelector('#days tbody');
+      if (!days.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">no traffic yet — go play a round!</td></tr>';
+        return;
+      }
+      tbody.innerHTML = '';
+      for (const d of days) {
+        const { views, plays } = byDay[d];
+        const tr = document.createElement('tr');
+        const vw = Math.round(200 * views / max);
+        const pw = Math.round(200 * plays / max);
+        tr.innerHTML = `<td>${d}</td><td>${views}</td><td>${plays}</td>` +
+          `<td style="text-align:left"><span class="bar" style="width:${vw}px"></span>` +
+          `<br><span class="bar play" style="width:${pw}px"></span></td>`;
+        tbody.appendChild(tr);
+      }
+    }
+    load();
+  </script>
+</body>
+</html>
