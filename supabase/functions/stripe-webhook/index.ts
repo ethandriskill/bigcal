@@ -3,7 +3,7 @@
 //
 // Flow: Stripe Payment Link checkout → checkout.session.completed webhook →
 // signature verified here → buyer's custom-field answers (tagline, business
-// name, link URL) inserted into the public.ads table → the ad is live on the
+// name, link URL) inserted into the public.signs table → the ad is live on the
 // next page load and expires automatically after 7 days (ends_at default).
 //
 // Required secret (Edge Functions → Secrets): STRIPE_WEBHOOK_SECRET
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
-  const { error } = await supabase.from('ads').insert({ tagline, business, url, tier });
+  const { error } = await supabase.from('signs').insert({ tagline, business, url, tier });
   if (error) {
     return new Response(`insert failed: ${error.message}`, { status: 500 });
   }

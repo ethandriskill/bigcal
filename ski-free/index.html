@@ -44,8 +44,8 @@
     .credit:hover { color: #ffffff; text-decoration: underline; }
 
     /* ── 90s banner ads: premium (top, larger) & basic (bottom, thinner) ── */
-    .adbar { display: flex; justify-content: center; margin: 6px 0; }
-    .adbar .ad {
+    .bb-row { display: flex; justify-content: center; margin: 6px 0; }
+    .bb-row .bb {
       display: flex; align-items: center; gap: 12px;
       width: 100%;
       background: #c0c0c0; border: 3px outset #e8e8e8;
@@ -54,19 +54,19 @@
       box-shadow: 2px 2px 0 rgba(0,0,0,0.35);
       overflow: hidden;
     }
-    .adbar .ad:hover .ad-logo { border-style: inset; }
-    .ad-chip {
+    .bb-row .bb:hover .bb-logo { border-style: inset; }
+    .bb-chip {
       background: #000080; color: #fff; font-size: 10px; font-weight: bold;
       padding: 1px 5px; border: 1px solid #fff; flex-shrink: 0;
     }
-    .ad-orn { flex-shrink: 0; font-size: 13px; animation: adblink 1.2s steps(1) infinite; }
-    @keyframes adblink { 50% { opacity: 0; } }
-    .ad-tag {
+    .bb-orn { flex-shrink: 0; font-size: 13px; animation: blink98 1.2s steps(1) infinite; }
+    @keyframes blink98 { 50% { opacity: 0; } }
+    .bb-tag {
       font-weight: bold; text-align: left;
       overflow: hidden; line-height: 1.35;
       display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
-    .ad-logo {
+    .bb-logo {
       margin-left: auto; flex-shrink: 0;
       color: #fff; border: 2px outset #dcdcdc;
       padding: 3px 10px;
@@ -74,28 +74,28 @@
       font-weight: bold; font-style: italic;
       white-space: nowrap;
     }
-    .ad-premium { padding: 8px 14px; }
-    .ad-premium .ad-tag { font-size: 13px; }
-    .ad-premium .ad-logo { font-size: 13px; }
-    .ad-basic { padding: 3px 12px; }
-    .ad-basic .ad-tag { font-size: 10px; }
-    .ad-basic .ad-logo { font-size: 10px; padding: 1px 8px; }
+    .bb-premium { padding: 8px 14px; }
+    .bb-premium .bb-tag { font-size: 13px; }
+    .bb-premium .bb-logo { font-size: 13px; }
+    .bb-basic { padding: 3px 12px; }
+    .bb-basic .bb-tag { font-size: 10px; }
+    .bb-basic .bb-logo { font-size: 10px; padding: 1px 8px; }
     @media (max-width: 600px) {
-      .ad-premium .ad-tag { font-size: 11px; }
-      .ad-premium .ad-logo { font-size: 10px; }
-      .ad-basic .ad-tag { font-size: 9px; }
+      .bb-premium .bb-tag { font-size: 11px; }
+      .bb-premium .bb-logo { font-size: 10px; }
+      .bb-basic .bb-tag { font-size: 9px; }
     }
   </style>
 </head>
 <body>
-<div id="ad-top" class="adbar"></div>
+<div id="bb-top" class="bb-row"></div>
 <canvas id="game"></canvas>
 <div class="footlinks">
   <a class="credit" href="https://outerbloc.com" target="_blank" rel="noopener">created by outerbloc</a>
   <span class="credit">·</span>
   <a class="credit" href="advertise/">📢 advertise with us</a>
 </div>
-<div id="ad-bottom" class="adbar"></div>
+<div id="bb-bottom" class="bb-row"></div>
 <script>
 // ─── Canvas Setup ───────────────────────────────────────────────────────────
 const canvas = document.getElementById('game');
@@ -113,8 +113,8 @@ ctx.scale(dpr, dpr);
 // display-size change is transparent to the game logic.
 function fitCanvas() {
   const margin = 16, creditH = 34;
-  const adTop = document.getElementById('ad-top');
-  const adBot = document.getElementById('ad-bottom');
+  const adTop = document.getElementById('bb-top');
+  const adBot = document.getElementById('bb-bottom');
   const adH = (adTop ? adTop.offsetHeight : 0) + (adBot ? adBot.offsetHeight : 0) + 12;
   const availW = window.innerWidth - margin;
   const availH = window.innerHeight - margin - creditH - adH;
@@ -134,7 +134,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 45;
+const APP_VERSION = 46;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
@@ -987,7 +987,7 @@ async function fetchAds() {
   if (lbEnabled()) {
     try {
       const r = await fetch(
-        `${LB_URL}/rest/v1/ads?select=id,tagline,business,url,tier`,
+        `${LB_URL}/rest/v1/signs?select=id,tagline,business,url,tier`,
         { headers: { apikey: LB_KEY, Authorization: `Bearer ${LB_KEY}` } }
       );
       if (r.ok) adList = await r.json();
@@ -1020,7 +1020,7 @@ function adHash(s) {
 
 function makeAdEl(ad, size) {
   const a = document.createElement('a');
-  a.className = 'ad ' + (size === 'premium' ? 'ad-premium' : 'ad-basic');
+  a.className = 'bb ' + (size === 'premium' ? 'bb-premium' : 'bb-basic');
   a.target = '_blank';
   a.rel = 'noopener sponsored';
   a.href = /^https?:\/\//.test(ad.url) ? ad.url : 'https://skifree2.com/advertise/';
@@ -1035,23 +1035,23 @@ function makeAdEl(ad, size) {
   a.style.borderColor = theme.border;
 
   const chip = document.createElement('span');
-  chip.className = 'ad-chip';
+  chip.className = 'bb-chip';
   chip.textContent = ad.house ? '★' : 'AD';
   chip.style.background = theme.chipBg;
   chip.style.color = theme.chipFg;
   chip.style.borderColor = theme.chipFg;
 
   const orn = document.createElement('span');
-  orn.className = 'ad-orn';
+  orn.className = 'bb-orn';
   orn.textContent = theme.orn;
   orn.style.color = theme.ornCol;
 
   const tag = document.createElement('span');
-  tag.className = 'ad-tag';
+  tag.className = 'bb-tag';
   tag.textContent = ad.tagline || '';                 // textContent = XSS-safe
 
   const logo = document.createElement('span');
-  logo.className = 'ad-logo';
+  logo.className = 'bb-logo';
   logo.textContent = ad.business || '';
   logo.style.background = theme.logoBg;
   logo.style.color = theme.logoFg;
@@ -1061,8 +1061,8 @@ function makeAdEl(ad, size) {
 }
 
 function renderAds() {
-  const top = document.getElementById('ad-top');
-  const bot = document.getElementById('ad-bottom');
+  const top = document.getElementById('bb-top');
+  const bot = document.getElementById('bb-bottom');
   if (!top || !bot) return;
   const ok = a => a && a.tagline && a.url;
   const prem   = adList.filter(a => ok(a) && a.tier === 'premium');
