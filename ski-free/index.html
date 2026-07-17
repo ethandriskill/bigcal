@@ -63,7 +63,8 @@
     @keyframes adblink { 50% { opacity: 0; } }
     .ad-tag {
       font-weight: bold; text-align: left;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      overflow: hidden; line-height: 1.35;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     }
     .ad-logo {
       margin-left: auto; flex-shrink: 0;
@@ -73,16 +74,16 @@
       font-weight: bold; font-style: italic;
       white-space: nowrap;
     }
-    .ad-premium { padding: 10px 14px; }
-    .ad-premium .ad-tag { font-size: 17px; }
-    .ad-premium .ad-logo { font-size: 14px; }
+    .ad-premium { padding: 8px 14px; }
+    .ad-premium .ad-tag { font-size: 13px; }
+    .ad-premium .ad-logo { font-size: 13px; }
     .ad-basic { padding: 3px 12px; }
-    .ad-basic .ad-tag { font-size: 12px; }
-    .ad-basic .ad-logo { font-size: 11px; padding: 1px 8px; }
+    .ad-basic .ad-tag { font-size: 10px; }
+    .ad-basic .ad-logo { font-size: 10px; padding: 1px 8px; }
     @media (max-width: 600px) {
-      .ad-premium .ad-tag { font-size: 13px; }
-      .ad-premium .ad-logo { font-size: 11px; }
-      .ad-basic .ad-tag { font-size: 11px; }
+      .ad-premium .ad-tag { font-size: 11px; }
+      .ad-premium .ad-logo { font-size: 10px; }
+      .ad-basic .ad-tag { font-size: 9px; }
     }
   </style>
 </head>
@@ -133,7 +134,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 43;
+const APP_VERSION = 44;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
