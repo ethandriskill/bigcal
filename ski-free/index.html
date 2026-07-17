@@ -59,7 +59,8 @@
       background: #000080; color: #fff; font-size: 10px; font-weight: bold;
       padding: 1px 5px; border: 1px solid #fff; flex-shrink: 0;
     }
-    .ad-orn { flex-shrink: 0; font-size: 13px; }
+    .ad-orn { flex-shrink: 0; font-size: 13px; animation: adblink 1.2s steps(1) infinite; }
+    @keyframes adblink { 50% { opacity: 0; } }
     .ad-tag {
       font-weight: bold; text-align: left;
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -132,7 +133,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 42;
+const APP_VERSION = 43;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
@@ -936,25 +937,38 @@ let skiDuck = 0;                       // briefly quiets the ski hiss for big mo
 // thinner BOTTOM banner. Every banner is generated in 90s Windows style from a
 // tagline (left) and a business-name "logo" block (right). One random advertiser
 // per slot per page load — refresh and you may see someone else.
-// Each customer ad gets its own Windows-98-era color theme, assigned
-// permanently from the ad's identity so a brand always keeps its look.
+// House placeholders keep the plain system gray so paid ads pop against them
+const HOUSE_THEME = { bg: '#c0c0c0', text: '#000', border: '#e8e8e8',
+  chipBg: '#000080', chipFg: '#fff', logoBg: '#000080', logoFg: '#fff', orn: '◆', ornCol: '#000080' };
+
+// Customer ads get one of these LOUD 90s themes, assigned permanently from the
+// ad's identity. Every theme is engineered to pop hard against the teal
+// desktop and gray game chrome — no blending in allowed.
 const AD_THEMES = [
-  { name: 'classic',  bg: '#c0c0c0', text: '#000', border: '#e8e8e8',
-    chipBg: '#000080', chipFg: '#fff', logoBg: '#000080', logoFg: '#fff', orn: '◆', ornCol: '#000080' },
-  { name: 'titlebar', bg: 'linear-gradient(90deg,#000080,#1084d0)', text: '#fff', border: '#9cc4e4',
-    chipBg: '#fff', chipFg: '#000080', logoBg: '#c0c0c0', logoFg: '#000080', orn: '★', ornCol: '#ffff00' },
-  { name: 'desktop',  bg: '#008080', text: '#fff', border: '#40a0a0',
-    chipBg: '#c0c0c0', chipFg: '#000', logoBg: '#c0c0c0', logoFg: '#008080', orn: '●', ornCol: '#ffff80' },
-  { name: 'tooltip',  bg: '#ffffcc', text: '#000', border: '#e8e8b0',
-    chipBg: '#808000', chipFg: '#fff', logoBg: '#b00000', logoFg: '#fff', orn: '☼', ornCol: '#b00000' },
-  { name: 'plum',     bg: '#800080', text: '#fff', border: '#c060c0',
-    chipBg: '#ffff00', chipFg: '#800080', logoBg: '#ffff00', logoFg: '#800080', orn: '♦', ornCol: '#ffff00' },
-  { name: 'forest',   bg: '#006000', text: '#fff', border: '#40a040',
-    chipBg: '#c0c0c0', chipFg: '#006000', logoBg: '#ffffcc', logoFg: '#006000', orn: '♣', ornCol: '#80ff80' },
-  { name: 'maroon',   bg: '#800000', text: '#fff', border: '#c06060',
-    chipBg: '#ffcc00', chipFg: '#800000', logoBg: '#c0c0c0', logoFg: '#800000', orn: '►', ornCol: '#ffcc00' },
-  { name: 'slate',    bg: '#d4d0c8', text: '#000', border: '#f0ece4',
-    chipBg: '#404040', chipFg: '#fff', logoBg: '#404080', logoFg: '#fff', orn: '■', ornCol: '#404080' }
+  { name: 'hotdog',    bg: '#e00000', text: '#ffff00', border: '#ff8080',
+    chipBg: '#ffff00', chipFg: '#e00000', logoBg: '#ffff00', logoFg: '#e00000', orn: '★', ornCol: '#fff' },
+  { name: 'titlebar',  bg: 'linear-gradient(90deg,#000080,#1084d0)', text: '#fff', border: '#9cc4e4',
+    chipBg: '#ffff00', chipFg: '#000080', logoBg: '#fff', logoFg: '#000080', orn: '★', ornCol: '#ffff00' },
+  { name: 'vaporwave', bg: 'linear-gradient(90deg,#ff00cc,#6600cc)', text: '#fff', border: '#ff80e0',
+    chipBg: '#00ffff', chipFg: '#6600cc', logoBg: '#00ffff', logoFg: '#6600cc', orn: '▲', ornCol: '#00ffff' },
+  { name: 'terminal',  bg: '#000000', text: '#00ff00', border: '#00a000',
+    chipBg: '#00ff00', chipFg: '#000', logoBg: '#003000', logoFg: '#00ff00', orn: '█', ornCol: '#00ff00' },
+  { name: 'sunburst',  bg: 'linear-gradient(90deg,#ff8000,#ffcc00)', text: '#000080', border: '#ffe080',
+    chipBg: '#000080', chipFg: '#ffcc00', logoBg: '#000080', logoFg: '#ffcc00', orn: '☼', ornCol: '#fff' },
+  { name: 'electric',  bg: '#0000ee', text: '#ffff00', border: '#8080ff',
+    chipBg: '#ffff00', chipFg: '#0000ee', logoBg: '#00ffff', logoFg: '#0000ee', orn: '⚡', ornCol: '#00ffff' },
+  { name: 'lemonlime', bg: '#ffee00', text: '#006000', border: '#ffff80',
+    chipBg: '#006000', chipFg: '#ffee00', logoBg: '#00a000', logoFg: '#ffff00', orn: '●', ornCol: '#00a000' },
+  { name: 'bubblegum', bg: '#ff69b4', text: '#000080', border: '#ffb0d8',
+    chipBg: '#000080', chipFg: '#ff69b4', logoBg: '#fff', logoFg: '#ff1493', orn: '♥', ornCol: '#fff' },
+  { name: 'grape',     bg: '#7700cc', text: '#aaff00', border: '#b060ff',
+    chipBg: '#aaff00', chipFg: '#7700cc', logoBg: '#aaff00', logoFg: '#7700cc', orn: '♦', ornCol: '#aaff00' },
+  { name: 'midnight',  bg: '#101030', text: '#ff40a0', border: '#ff40a0',
+    chipBg: '#ff40a0', chipFg: '#101030', logoBg: '#00e8e8', logoFg: '#101030', orn: '☾', ornCol: '#00e8e8' },
+  { name: 'americana', bg: '#ffffff', text: '#c00000', border: '#ffb0b0',
+    chipBg: '#c00000', chipFg: '#fff', logoBg: '#000080', logoFg: '#fff', orn: '★', ornCol: '#000080' },
+  { name: 'toxic',     bg: 'linear-gradient(90deg,#00c000,#80e000)', text: '#000', border: '#a0ff60',
+    chipBg: '#000', chipFg: '#80ff00', logoBg: '#000', logoFg: '#80ff00', orn: '☢', ornCol: '#ffff00' }
 ];
 const HOUSE_TOP = {
   tagline: 'RENT THIS SPACE — $10 / week',
@@ -1012,7 +1026,7 @@ function makeAdEl(ad, size) {
 
   // House ads keep the classic gray; each customer gets a stable unique theme
   const theme = ad.house
-    ? AD_THEMES[0]
+    ? HOUSE_THEME
     : AD_THEMES[adHash(String(ad.id ?? '') + (ad.business || '') + (ad.tagline || '')) % AD_THEMES.length];
 
   a.style.background = theme.bg;
