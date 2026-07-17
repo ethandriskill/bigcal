@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
   }
 
   // Clean up to satisfy the ads table's constraints
-  tagline = (tagline || 'A mysterious sponsor').slice(0, 60).trim();
+  tagline = (tagline || 'A mysterious sponsor').slice(0, 120).trim();
   business = (business || '').slice(0, 30).trim();
   url = (url || '').trim();
   if (url && !/^https?:\/\//i.test(url)) url = 'https://' + url;
