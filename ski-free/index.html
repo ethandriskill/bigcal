@@ -129,6 +129,10 @@ window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 100));
 
 const FONT = "'Courier New', Courier, monospace";
 
+// Bump this on EVERY deploy — the auto-updater below compares it against the
+// server's copy and reloads stale pages (cached browsers, left-open tabs).
+const APP_VERSION = 41;
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
 const BASE_SPEED   = 130;
@@ -2429,6 +2433,28 @@ canvas.addEventListener('click', e => {
     }
   }
 });
+
+// ─── Auto-updater ─────────────────────────────────────────────────────────────
+// Fetch a fresh copy of this page past every cache layer and compare versions.
+// If the server has a newer build, reload — but only on the title or game-over
+// screen so nobody gets yanked out of a run. Kills the stale-cache problem:
+// old copies converge to the latest deploy within minutes, hands-free.
+async function checkForUpdate() {
+  try {
+    const r = await fetch(location.pathname + '?v=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) return;
+    const text = await r.text();
+    const m = text.match(/APP_VERSION\s*=\s*(\d+)/);
+    if (!m) return;
+    const serverVersion = parseInt(m[1], 10);
+    if (serverVersion > APP_VERSION &&
+        (gameState === STATES.START || gameState === STATES.GAMEOVER)) {
+      location.reload();
+    }
+  } catch (e) { /* offline — try again next interval */ }
+}
+setTimeout(checkForUpdate, 4000);        // shortly after load (catches stale cache)
+setInterval(checkForUpdate, 300000);     // and every 5 minutes (catches open tabs)
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 loadHighScore();
