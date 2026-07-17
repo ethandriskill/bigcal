@@ -134,7 +134,7 @@ const FONT = "'Courier New', Courier, monospace";
 
 // Bump this on EVERY deploy — the auto-updater below compares it against the
 // server's copy and reloads stale pages (cached browsers, left-open tabs).
-const APP_VERSION = 44;
+const APP_VERSION = 45;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const SKIER_Y      = H * 0.38;
@@ -2508,6 +2508,11 @@ async function checkForUpdate() {
 }
 setTimeout(checkForUpdate, 4000);        // shortly after load (catches stale cache)
 setInterval(checkForUpdate, 300000);     // and every 5 minutes (catches open tabs)
+// and the instant a long-lived tab regains focus (Arc sidebars, phone tab
+// switchers, restored sessions) — resurrected pages update on first glance
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkForUpdate();
+});
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 loadHighScore();
