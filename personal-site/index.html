@@ -186,6 +186,9 @@ body{
 .pin-purple .tile svg{stroke:#fff}
 .pin-dark   .tile{background:var(--ink)}
 .pin-dark   .tile svg{stroke:var(--lime)}
+.pin-green  .tile{background:var(--green)}
+.pin-green  .tile svg{stroke:#fff}
+.pin-green  .stem{background:rgba(95,164,99,.9)}
 .dicon .stem{
   width:3px;height:15px;border-radius:2px;
   background:rgba(43,43,38,.55);
@@ -287,6 +290,14 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
   background:var(--cream-2);border:1px solid var(--line);
   padding:3px 9px;border-radius:7px;color:var(--ink);
   font-variant-numeric:tabular-nums;
+}
+
+/* embedded pages (Cal) */
+.wbody.embed{display:flex;flex-direction:column;padding:0}
+.wbody.embed iframe{flex:1;width:100%;border:0;background:#fff}
+.embedbar{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 14px;border-top:1px solid var(--line);font-size:12px;
 }
 
 /* resize handle */
@@ -462,10 +473,17 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
     <span class="stem"></span>
     <span class="lbl">Letter</span>
   </button>
-  <button class="dicon pin-lime" data-win="resume">
-    <span class="tile"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h6M10 15.5h6"/></svg></span>
+  <!-- PLACEHOLDER: confirm this is your LinkedIn URL -->
+  <button class="dicon pin-lime" data-win="linkedin" data-href="https://www.linkedin.com/in/ethandriskill">
+    <span class="tile"><svg viewBox="0 0 24 24"><path d="M7 10v7M7 6.8v.1M11.5 17v-4.2a2.4 2.4 0 0 1 4.8 0V17"/><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/></svg></span>
     <span class="stem"></span>
-    <span class="lbl">Resume</span>
+    <span class="lbl">LinkedIn ↗</span>
+  </button>
+  <!-- PLACEHOLDER: confirm this is your Cal link (also set on the iframe below) -->
+  <button class="dicon pin-green" data-win="book">
+    <span class="tile"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 9.5h17M8 3.5V6M16 3.5V6M12 13v3M10.5 14.5h3"/></svg></span>
+    <span class="stem"></span>
+    <span class="lbl">Book Time</span>
   </button>
   <button class="dicon pin-coral" data-win="projects">
     <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
@@ -499,62 +517,13 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
       <p class="data" style="margin:10px 0 18px">EST. READ · 1 MIN</p>
       <!-- PLACEHOLDER: rewrite this letter in your own voice -->
       <p>Hi, I'm Ethan. Thanks for wandering into my little corner of the internet.</p>
-      <p>I like making things: software, side projects, and the occasional questionable idea that turns out better than expected. Poke around the map — my resume is pinned here, some projects I'm proud of, and a few ways to reach me.</p>
+      <p>I like making things: software, side projects, and the occasional questionable idea that turns out better than expected. Poke around the map — my LinkedIn is pinned here, some projects I'm proud of, and a spot to book time with me.</p>
       <p>If something here resonates, say hi. I read everything.</p>
       <p class="sig">— Ethan</p>
     </div>
   </div>
 </section>
 
-<!-- RESUME -->
-<section class="window" id="win-resume" data-title="Resume" data-w="640" data-h="580">
-  <div class="wbody padded">
-    <h2>Ethan<br><b>Driskill</b></h2>
-    <p class="sub"><!-- PLACEHOLDER: one-line title/location -->Builder of things · Your City, USA</p>
-
-    <h3 class="dd">Experience</h3>
-    <!-- PLACEHOLDER: replace with your real experience -->
-    <div class="job">
-      <div class="row1"><span class="role">Your Current Role</span><span class="data">2023 — NOW</span></div>
-      <div class="org">Company Name</div>
-      <ul>
-        <li>Something impressive you shipped, with a number in it.</li>
-        <li>A hard problem you solved and what it unlocked.</li>
-        <li>A thing you led, built, or grew.</li>
-      </ul>
-    </div>
-    <div class="job">
-      <div class="row1"><span class="role">Previous Role</span><span class="data">2020 — 2023</span></div>
-      <div class="org">Previous Company</div>
-      <ul>
-        <li>What you owned and how it went.</li>
-        <li>Another concrete win.</li>
-      </ul>
-    </div>
-
-    <h3 class="dd">Education</h3>
-    <div class="job">
-      <div class="row1"><span class="role">Your Degree</span><span class="data">YEAR</span></div>
-      <div class="org">Your University</div>
-    </div>
-
-    <h3 class="dd">Skills</h3>
-    <div class="chips">
-      <!-- PLACEHOLDER: your actual skills -->
-      <span class="chip"><span class="sq sq-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg></span>Product</span>
-      <span class="chip"><span class="sq sq-lime"><svg viewBox="0 0 24 24"><path d="M4 20 12 4l8 16"/></svg></span>Design</span>
-      <span class="chip"><span class="sq sq-green"><svg viewBox="0 0 24 24"><path d="M8 4v16M16 4v16"/></svg></span>TypeScript</span>
-      <span class="chip"><span class="sq sq-coral"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></span>React</span>
-      <span class="chip"><span class="sq sq-dark"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Shipping fast</span>
-    </div>
-
-    <div class="btnrow">
-      <!-- PLACEHOLDER: point this at your real resume PDF -->
-      <a class="btnp" href="resume.pdf" download><span>Download PDF</span><span class="go">→</span></a>
-      <a class="btns" href="mailto:ethandriskill@gmail.com?subject=Saw%20your%20resume">Email me</a>
-    </div>
-  </div>
-</section>
 
 <!-- PROJECTS -->
 <section class="window" id="win-projects" data-title="Side Projects" data-w="600" data-h="420">
@@ -592,7 +561,7 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
         <rect width="280" height="300" fill="#E8E5DC"/>
         <circle cx="140" cy="115" r="58" fill="#cfccc0"/>
         <path d="M50 300c8-72 52-98 90-98s82 26 90 98z" fill="#cfccc0"/>
-        <text x="140" y="285" text-anchor="middle" font-family="Inter" font-size="11" letter-spacing="2" fill="#8a897e">YOUR PHOTO HERE</text>
+        <text x="140" y="285" text-anchor="middle" font-family="Inter" font-size="11" letter-spacing="1" fill="#8a897e">YOUR LINKEDIN PHOTO HERE</text>
       </svg>
       <figcaption class="cap">me · probably mid-idea</figcaption>
     </figure>
@@ -629,9 +598,9 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
         <span class="sq sq-dark"><svg viewBox="0 0 24 24"><path d="M15.5 21v-3.2c0-.9-.3-1.5-.7-1.8 2.3-.3 4.7-1.1 4.7-5a3.9 3.9 0 0 0-1-2.7 3.6 3.6 0 0 0-.1-2.7s-.9-.3-2.9 1a10 10 0 0 0-5 0c-2-1.3-2.9-1-2.9-1a3.6 3.6 0 0 0-.1 2.7 3.9 3.9 0 0 0-1 2.7c0 3.9 2.4 4.7 4.7 5-.3.3-.6.8-.7 1.5v3.5"/><path d="M8.5 18.5c-2 .7-3.5 0-4.5-1.5"/></svg></span>
         <span>GitHub<small>@ethandriskill</small></span>
       </a>
-      <a class="social" href="#" target="_blank" rel="noopener">
+      <a class="social" href="https://www.linkedin.com/in/ethandriskill" target="_blank" rel="noopener">
         <span class="sq sq-green"><svg viewBox="0 0 24 24"><path d="M8 10.5V17M8 7.5v.1M12 17v-4a2.2 2.2 0 0 1 4.4 0V17"/></svg></span>
-        <span>LinkedIn<small>/in/yourname</small></span>
+        <span>LinkedIn<small>/in/ethandriskill</small></span>
       </a>
       <a class="social" href="#" target="_blank" rel="noopener">
         <span class="sq sq-coral"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></span>
@@ -641,6 +610,18 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
         <span class="sq sq-purple"><svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="4"/><circle cx="12" cy="12" r="3.4"/></svg></span>
         <span>Instagram<small>@yourhandle</small></span>
       </a>
+    </div>
+  </div>
+</section>
+
+<!-- BOOK TIME -->
+<section class="window" id="win-book" data-title="Book Time" data-w="460" data-h="640">
+  <div class="wbody embed">
+    <!-- PLACEHOLDER: confirm your Cal link -->
+    <iframe src="https://cal.com/ethandriskill" title="Book a meeting" loading="lazy"></iframe>
+    <div class="embedbar">
+      <span class="muted">Calendar not loading?</span>
+      <a href="https://cal.com/ethandriskill" target="_blank" rel="noopener">Open in a new tab ↗</a>
     </div>
   </div>
 </section>
@@ -871,7 +852,8 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
   const scatterMap = {
     letter:   {x:.07, y:.16},
     contact:  {x:.30, y:.08},
-    resume:   {x:.80, y:.12},
+    linkedin: {x:.80, y:.12},
+    book:     {x:.66, y:.26},
     projects: {x:.13, y:.60},
     photo:    {x:.87, y:.48},
     work:     {x:.55, y:.68},
@@ -918,8 +900,10 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 
     btn.addEventListener("click", () => {
       if (dragged) { dragged = false; return; }   /* a drag isn't a click */
+      if (btn.dataset.href){ window.open(btn.dataset.href, "_blank", "noopener"); return; }
       const id = btn.dataset.win;
       const w = wins[id];
+      if (!w) return;
       if (w.minimized) restoreWin(id);
       else if (w.el.classList.contains("open") && w.el.classList.contains("active")) closeWin(id);
       else openWin(id);
