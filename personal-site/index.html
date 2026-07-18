@@ -117,9 +117,7 @@ body{
    desktop icons — flat gradient tiles
    ============================================================ */
 #icons{
-  position:absolute;top:calc(var(--menubar-h) + 16px);right:12px;bottom:80px;
-  display:flex;flex-direction:column;flex-wrap:wrap-reverse;align-content:flex-start;
-  gap:8px 6px;padding:4px;
+  position:absolute;inset:var(--menubar-h) 0 0 0;
   pointer-events:none;
 }
 .dicon{
@@ -130,15 +128,18 @@ body{
   border:none;border-radius:10px;
   background:none;cursor:pointer;
   font-family:var(--font-ui);color:#fff;
-  position:relative;
+  position:absolute;      /* scattered by JS on desktop */
+  touch-action:none;
 }
+.dicon.dragging{cursor:grabbing;z-index:50}
 .dicon:hover{background:rgba(255,255,255,.14)}
-.dicon:active .tile{transform:scale(.92)}
+.dicon:active .tile{transform:rotate(var(--tilt,0deg)) scale(.92)}
 .tile{
   width:50px;height:50px;border-radius:13px;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 5px 14px rgba(20,15,50,.35), inset 0 1px 0 rgba(255,255,255,.35);
   transition:transform .1s;
+  transform:rotate(var(--tilt,0deg));
 }
 .tile svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .t-letter  {background:linear-gradient(135deg,#ffb199,#ff7a85)}
@@ -442,12 +443,16 @@ body{
   .hide-sm{display:none}
   #menubar .m:not(.name){display:none}
   #icons{
-    top:auto;right:0;left:0;bottom:0;
-    flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;
+    inset:auto 0 0 0;
+    display:flex;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;
     gap:2px 8px;padding:12px 8px calc(16px + env(safe-area-inset-bottom));
     background:linear-gradient(transparent,rgba(18,18,46,.4));
   }
-  .dicon{width:78px;padding:8px 2px 6px}
+  .dicon{
+    width:78px;padding:8px 2px 6px;
+    position:relative;left:auto !important;top:auto !important;
+    --tilt:0deg;
+  }
   .tile{width:46px;height:46px}
   .window{
     top:var(--menubar-h) !important;left:0 !important;
@@ -681,10 +686,10 @@ body{
 
     <h3 style="margin-top:26px">Elsewhere</h3>
     <div class="socialgrid">
-      <!-- PLACEHOLDER: swap # for your real profile URLs -->
-      <a class="social" href="#" target="_blank" rel="noopener">
+      <!-- PLACEHOLDER: swap # for your real profile URLs (GitHub is real) -->
+      <a class="social" href="https://github.com/ethandriskill" target="_blank" rel="noopener">
         <span class="ic"><svg viewBox="0 0 24 24" fill="#181717"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.54-3.87-1.54-.53-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.96.1-.75.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.16 1.18a11 11 0 0 1 5.76 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.83 1.18 3.09 0 4.41-2.69 5.38-5.25 5.67.41.35.77 1.05.77 2.12v3.14c0 .31.2.67.8.55A11.5 11.5 0 0 0 23.5 12 11.5 11.5 0 0 0 12 .5z"/></svg></span>
-        <span>GitHub<small>@yourhandle</small></span>
+        <span>GitHub<small>@ethandriskill</small></span>
       </a>
       <a class="social" href="#" target="_blank" rel="noopener">
         <span class="ic"><svg viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05a3.74 3.74 0 0 1 3.37-1.85c3.6 0 4.27 2.37 4.27 5.46zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12zM7.12 20.45H3.56V9h3.56zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"/></svg></span>
@@ -773,7 +778,8 @@ body{
       const move = ev => {
         let x = r.left + (ev.clientX - startX);
         let y = r.top  + (ev.clientY - startY);
-        x = Math.min(Math.max(x, -r.width + 90), innerWidth - 40);
+        /* traffic lights sit top-left — never let them leave the screen */
+        x = Math.min(Math.max(x, -6), innerWidth - 90);
         y = Math.min(Math.max(y, MENUBAR), innerHeight - 40);
         el.style.left = x + "px";
         el.style.top  = y + "px";
@@ -828,9 +834,11 @@ body{
       const height = Math.min(dh, innerHeight - MENUBAR - 60);
       w.el.style.width  = width + "px";
       w.el.style.height = height + "px";
-      const n = Object.values(wins).filter(o => o.el.classList.contains("open")).length;
-      w.el.style.left = Math.max(10, (innerWidth  - width)  / 2 + (n % 5) * 34 - 68) + "px";
-      w.el.style.top  = Math.max(MENUBAR + 6, (innerHeight - height) / 2 + (n % 5) * 26 - 40) + "px";
+      /* windows land wherever — no tidy cascade */
+      const maxX = Math.max(16, innerWidth  - width  - 16);
+      const maxY = Math.max(MENUBAR + 8, innerHeight - height - 24);
+      w.el.style.left = Math.round(16 + Math.random() * (maxX - 16)) + "px";
+      w.el.style.top  = Math.round(MENUBAR + 8 + Math.random() * (maxY - MENUBAR - 8)) + "px";
     }
     w.el.classList.remove("closing","minimizing");
     w.el.classList.add("open");
@@ -906,9 +914,59 @@ body{
     if (b) b.remove();
   }
 
-  /* ---------- desktop icons ---------- */
+  /* ---------- desktop icons: scattered, draggable ---------- */
+  /* loose home regions (fractions of the desktop) — jittered every load */
+  const scatterMap = {
+    letter:   {x:.07, y:.14},
+    contact:  {x:.30, y:.07},
+    resume:   {x:.80, y:.10},
+    projects: {x:.13, y:.62},
+    photo:    {x:.87, y:.50},
+    work:     {x:.55, y:.74},
+  };
+  function scatterIcons(){
+    if (isMobile()) return;
+    document.querySelectorAll(".dicon").forEach(btn => {
+      if (btn.dataset.placed) return;   /* don't un-drag what the visitor moved */
+      const home = scatterMap[btn.dataset.win] || {x:Math.random(), y:Math.random()};
+      const jx = (Math.random() - .5) * .07, jy = (Math.random() - .5) * .07;
+      const x = Math.min(Math.max((home.x + jx) * innerWidth,  6), innerWidth  - 100);
+      const y = Math.min(Math.max((home.y + jy) * (innerHeight - MENUBAR), 6), innerHeight - MENUBAR - 120);
+      btn.style.left = Math.round(x) + "px";
+      btn.style.top  = Math.round(y) + "px";
+      btn.style.setProperty("--tilt", ((Math.random() - .5) * 9).toFixed(1) + "deg");
+    });
+  }
+  scatterIcons();
+
   document.querySelectorAll(".dicon").forEach(btn => {
+    let dragged = false;
+
+    btn.addEventListener("pointerdown", e => {
+      if (isMobile()) return;
+      dragged = false;
+      const startX = e.clientX, startY = e.clientY;
+      const ox = btn.offsetLeft, oy = btn.offsetTop;
+      const move = ev => {
+        const dx = ev.clientX - startX, dy = ev.clientY - startY;
+        if (!dragged && Math.hypot(dx, dy) < 6) return;
+        dragged = true;
+        btn.classList.add("dragging");
+        btn.dataset.placed = "1";
+        btn.style.left = Math.min(Math.max(ox + dx, 2), innerWidth  - 96) + "px";
+        btn.style.top  = Math.min(Math.max(oy + dy, 2), innerHeight - MENUBAR - 110) + "px";
+      };
+      const up = () => {
+        btn.classList.remove("dragging");
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+      };
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+    });
+
     btn.addEventListener("click", () => {
+      if (dragged) { dragged = false; return; }   /* a drag isn't a click */
       const id = btn.dataset.win;
       const w = wins[id];
       if (w.minimized) restoreWin(id);
@@ -949,8 +1007,15 @@ body{
     }
   });
 
-  /* ---------- keep windows reachable on resize ---------- */
+  /* ---------- keep windows and icons reachable on resize ---------- */
   addEventListener("resize", () => {
+    scatterIcons();   /* places any icon that hasn't been positioned yet */
+    if (!isMobile()){
+      document.querySelectorAll(".dicon").forEach(btn => {
+        if (btn.offsetLeft > innerWidth - 96)  btn.style.left = (innerWidth - 100) + "px";
+        if (btn.offsetTop  > innerHeight - MENUBAR - 110) btn.style.top = (innerHeight - MENUBAR - 120) + "px";
+      });
+    }
     Object.values(wins).forEach(w => {
       if (!w.el.classList.contains("open") || isMobile() || w.el.classList.contains("maxed")) return;
       const r = w.el.getBoundingClientRect();
