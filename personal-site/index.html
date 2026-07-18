@@ -58,12 +58,32 @@ body{
 }
 
 /* ============================================================
-   wallpaper — layered alpine scene
+   wallpaper — alpenglow painting, with a Japanese-gradient option
    ============================================================ */
-#desktop{position:fixed;inset:0;overflow:hidden}
-#desktop svg{width:100%;height:100%;display:block}
-/* Want the photoreal look? Replace the SVG with:
-   #desktop{background:url(mountains.jpg) center/cover} */
+#desktop{position:fixed;inset:0;overflow:hidden;background:#33386e}
+.wp{position:absolute;inset:0;transition:opacity .9s ease}
+.wp svg{width:100%;height:100%;display:block}
+#wp-jp{opacity:0}
+#desktop.jp #wp-alp{opacity:0}
+#desktop.jp #wp-jp{opacity:1}
+/* Japanese bokashi sky */
+#wp-jp{
+  background:linear-gradient(180deg,#ffdcc4 0%,#ff8d8f 42%,#a986d8 72%,#33386e 100%);
+}
+#wp-jp .sun{
+  position:absolute;left:50%;top:34%;width:min(34vmin,300px);height:min(34vmin,300px);
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,#fff3e0 0%,#ffb199 62%,transparent 72%);
+  filter:blur(1px);opacity:.9;
+}
+#wp-jp .haze{
+  position:absolute;inset:0;
+  background:
+    linear-gradient(180deg,transparent 30%,rgba(255,255,255,.16) 46%,transparent 60%),
+    linear-gradient(180deg,transparent 62%,rgba(51,56,110,.18) 82%,transparent 96%);
+}
+/* Want the photoreal look instead? Replace #wp-alp with:
+   #wp-alp{background:url(mountains.jpg) center/cover} */
 
 /* ============================================================
    floating chrome pills
@@ -414,29 +434,28 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 <body>
 
 <div id="desktop" aria-hidden="true">
+  <!-- Japanese bokashi gradient (toggle via the sky button) -->
+  <div class="wp" id="wp-jp"><div class="sun"></div><div class="haze"></div></div>
+
+  <!-- alpenglow painting -->
+  <div class="wp" id="wp-alp">
   <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
     <defs>
       <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#c3d2d6"/>
-        <stop offset=".6" stop-color="#dde6e5"/>
-        <stop offset="1" stop-color="#e8ece7"/>
+        <stop offset="0"   stop-color="#5da49d"/>
+        <stop offset=".3"  stop-color="#8fc2b2"/>
+        <stop offset=".52" stop-color="#c4ceb2"/>
+        <stop offset=".68" stop-color="#e3cbaa"/>
+        <stop offset=".82" stop-color="#c9aebe"/>
+        <stop offset="1"   stop-color="#a99bb8"/>
       </linearGradient>
-      <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#93a7ab"/>
-        <stop offset="1" stop-color="#b4c3c3"/>
+      <linearGradient id="fore1" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#5c5e3d"/>
+        <stop offset="1" stop-color="#43462c"/>
       </linearGradient>
-      <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#6e8a74"/>
-        <stop offset="1" stop-color="#90a68e"/>
-      </linearGradient>
-      <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#4f7a54"/>
-        <stop offset=".55" stop-color="#5e8a5c"/>
-        <stop offset="1" stop-color="#7a9a6e"/>
-      </linearGradient>
-      <linearGradient id="fore" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0" stop-color="#66905e"/>
-        <stop offset="1" stop-color="#8aa872"/>
+      <linearGradient id="fore2" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#3d4128"/>
+        <stop offset="1" stop-color="#2b2f1d"/>
       </linearGradient>
       <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
         <feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="4" seed="11" result="n"/>
@@ -447,12 +466,18 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
         <feDisplacementMap in="SourceGraphic" in2="n" scale="34"/>
       </filter>
       <filter id="cloud" x="-50%" y="-50%" width="200%" height="200%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="8" result="n"/>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="90"/>
-        <feGaussianBlur stdDeviation="7"/>
+        <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="4" seed="8" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="100"/>
+        <feGaussianBlur stdDeviation="8"/>
       </filter>
+      <filter id="softblur"><feGaussianBlur stdDeviation="18"/></filter>
       <filter id="texture">
         <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="5"/>
+        <feColorMatrix type="saturate" values="0"/>
+        <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
+      </filter>
+      <filter id="strokes"> <!-- faint horizontal brush streaks -->
+        <feTurbulence type="fractalNoise" baseFrequency="0.006 0.09" numOctaves="2" seed="17"/>
         <feColorMatrix type="saturate" values="0"/>
         <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
       </filter>
@@ -460,65 +485,89 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 
     <!-- sky -->
     <rect width="1600" height="1000" fill="url(#sky)"/>
+    <!-- warm glow band above the peaks -->
+    <ellipse cx="800" cy="560" rx="900" ry="140" fill="#f0d3a4" opacity=".55" filter="url(#softblur)"/>
 
-    <!-- far hazy ridge -->
-    <g filter="url(#rough)" opacity=".8">
-      <path d="M-40 560 240 380 420 470 640 330 830 450 1040 340 1260 460 1450 390 1640 480 1640 1040 -40 1040 Z" fill="url(#far)"/>
-    </g>
-    <!-- snow caps on far ridge -->
-    <g filter="url(#rough)" opacity=".7">
-      <path d="M600 356 640 330 686 358 660 372 632 362 Z" fill="#eef2f0"/>
-      <path d="M1000 366 1040 340 1084 368 1052 380 1022 372 Z" fill="#eef2f0"/>
-    </g>
-
-    <!-- mid ridge -->
-    <g filter="url(#rough2)" opacity=".92">
-      <path d="M-40 660 180 520 400 610 620 470 900 620 1120 500 1340 610 1520 540 1640 600 1640 1040 -40 1040 Z" fill="url(#mid)"/>
+    <!-- gray-lavender cloud masses, top corners -->
+    <g filter="url(#cloud)">
+      <ellipse cx="150"  cy="120" rx="260" ry="80" fill="#847d9c" opacity=".85"/>
+      <ellipse cx="60"   cy="220" rx="200" ry="70" fill="#9b91ad" opacity=".7"/>
+      <ellipse cx="720"  cy="60"  rx="220" ry="46" fill="#8d86a4" opacity=".6"/>
+      <ellipse cx="1420" cy="90"  rx="240" ry="44" fill="#98a8ad" opacity=".5"/>
     </g>
 
-    <!-- near mountain (the big one) -->
+    <!-- big warm cumulus, left-center -->
+    <g filter="url(#cloud)">
+      <ellipse cx="430" cy="210" rx="270" ry="120" fill="#f6e2b8" opacity=".95"/>
+      <ellipse cx="560" cy="150" rx="180" ry="90"  fill="#f9ecca" opacity=".95"/>
+      <ellipse cx="330" cy="300" rx="230" ry="80"  fill="#efc794" opacity=".9"/>
+      <ellipse cx="520" cy="300" rx="180" ry="60"  fill="#e2a97e" opacity=".8"/>
+      <ellipse cx="640" cy="250" rx="140" ry="55"  fill="#f2d3a0" opacity=".85"/>
+    </g>
+    <!-- smaller warm clouds, right -->
+    <g filter="url(#cloud)">
+      <ellipse cx="1060" cy="180" rx="150" ry="40" fill="#f2d4a2" opacity=".9"/>
+      <ellipse cx="1190" cy="230" rx="110" ry="30" fill="#e9bd8c" opacity=".8"/>
+      <ellipse cx="1420" cy="180" rx="130" ry="26" fill="#f0d0a4" opacity=".75"/>
+      <ellipse cx="900"  cy="330" rx="160" ry="26" fill="#eec9a0" opacity=".6"/>
+    </g>
+
+    <!-- far right range, purple-blue with pink tops -->
     <g filter="url(#rough)">
-      <path d="M-40 1040 -40 820 260 640 520 760 780 560 1030 720 1290 620 1520 760 1640 720 1640 1040 Z" fill="url(#near)"/>
+      <path d="M900 520 1080 420 1180 470 1290 400 1400 460 1500 415 1640 480 1640 1040 900 1040 Z" fill="#6f6b9e"/>
     </g>
-    <!-- rocky patches -->
-    <g filter="url(#rough2)" opacity=".28">
-      <path d="M700 640 780 560 870 650 810 690 740 672 Z" fill="#c9c2ae"/>
-      <path d="M1240 660 1290 620 1360 672 1310 700 Z" fill="#c9c2ae"/>
-      <path d="M300 700 360 660 430 716 366 740 Z" fill="#bdb6a4"/>
-    </g>
-    <!-- tree clusters -->
-    <g filter="url(#rough2)" opacity=".5">
-      <ellipse cx="420" cy="810" rx="180" ry="46" fill="#3c5f42"/>
-      <ellipse cx="1080" cy="840" rx="220" ry="52" fill="#3c5f42"/>
-      <ellipse cx="240" cy="920" rx="160" ry="40" fill="#456a49"/>
-    </g>
-    <!-- blossom cluster, a nod to the reference -->
-    <g filter="url(#rough2)" opacity=".55">
-      <ellipse cx="640" cy="760" rx="110" ry="30" fill="#d9b8c4"/>
+    <g filter="url(#rough2)" opacity=".8">
+      <path d="M1060 438 1080 420 1130 448 1100 458 Z" fill="#cf8f95"/>
+      <path d="M1270 418 1290 400 1345 434 1305 444 Z" fill="#d59799"/>
+      <path d="M1480 430 1500 415 1560 448 1516 456 Z" fill="#c98b93"/>
     </g>
 
-    <!-- foreground meadow -->
+    <!-- main massif, alpenglow-lit -->
     <g filter="url(#rough)">
-      <path d="M-40 1040 -40 930 320 880 720 940 1120 880 1470 940 1640 900 1640 1040 Z" fill="url(#fore)"/>
+      <path d="M-40 620 120 520 260 420 400 300 520 250 640 320 760 300 880 380 1000 460 1100 520 1100 1040 -40 1040 Z" fill="#78619e"/>
+    </g>
+    <!-- lit faces (pink alpenglow) -->
+    <g filter="url(#rough2)">
+      <path d="M400 300 520 250 640 320 560 400 470 380 Z" fill="#e0968b" opacity=".95"/>
+      <path d="M260 420 400 300 470 380 380 470 300 460 Z" fill="#d68a8c" opacity=".85"/>
+      <path d="M640 320 760 300 880 380 800 440 700 410 Z" fill="#cf8490" opacity=".8"/>
+      <path d="M120 520 260 420 300 460 200 540 Z" fill="#c58394" opacity=".6"/>
+    </g>
+    <!-- purple shadow planes -->
+    <g filter="url(#rough2)" opacity=".85">
+      <path d="M520 250 560 400 470 520 380 470 Z" fill="#6a5f9c"/>
+      <path d="M800 440 880 380 1000 460 940 540 850 520 Z" fill="#5f568e"/>
+      <path d="M200 540 300 460 380 470 330 580 240 590 Z" fill="#5c548a"/>
     </g>
 
-    <!-- dashed trail -->
-    <path d="M820 980 C 860 880 780 800 850 720 C 910 650 1010 660 1050 590 C 1080 540 1060 480 1090 440"
-          fill="none" stroke="#f6f5ef" stroke-width="3.5" stroke-dasharray="2 14" stroke-linecap="round" opacity=".9"/>
+    <!-- mid valley ridge, blue-purple -->
+    <g filter="url(#rough2)" opacity=".95">
+      <path d="M-40 700 200 620 420 680 640 600 860 660 1080 590 1300 660 1500 610 1640 660 1640 1040 -40 1040 Z" fill="#565a86"/>
+    </g>
+    <!-- valley haze -->
+    <ellipse cx="800" cy="700" rx="850" ry="80" fill="#b3a6c2" opacity=".4" filter="url(#softblur)"/>
 
-    <!-- clouds -->
-    <g filter="url(#cloud)" fill="#ffffff">
-      <ellipse cx="420" cy="200" rx="130" ry="34" opacity=".9"/>
-      <ellipse cx="500" cy="230" rx="90"  ry="26" opacity=".8"/>
-      <ellipse cx="1150" cy="480" rx="180" ry="44" opacity=".95"/>
-      <ellipse cx="1290" cy="530" rx="130" ry="36" opacity=".9"/>
-      <ellipse cx="1360" cy="440" rx="100" ry="30" opacity=".85"/>
-      <ellipse cx="150"  cy="620" rx="120" ry="30" opacity=".55"/>
+    <!-- foreground hills, dark olive -->
+    <g filter="url(#rough)">
+      <path d="M-40 1040 -40 620 80 660 240 740 460 800 720 840 1000 810 1280 850 1500 820 1640 850 1640 1040 Z" fill="url(#fore1)"/>
+    </g>
+    <g filter="url(#rough2)">
+      <path d="M-40 1040 -40 780 160 840 400 900 700 930 1020 900 1340 950 1640 920 1640 1040 Z" fill="url(#fore2)"/>
+    </g>
+    <!-- tree silhouettes -->
+    <g filter="url(#rough2)" opacity=".8">
+      <ellipse cx="120" cy="700" rx="120" ry="34" fill="#252a19"/>
+      <ellipse cx="340" cy="820" rx="150" ry="30" fill="#22271a"/>
+      <ellipse cx="900" cy="880" rx="200" ry="34" fill="#1f2417"/>
+      <ellipse cx="1420" cy="900" rx="170" ry="30" fill="#232818"/>
+      <path d="M70 640 82 600 94 640 Z M110 660 122 616 134 660 Z M160 680 172 640 184 680 Z" fill="#202516"/>
     </g>
 
-    <!-- grain -->
-    <rect width="1600" height="1000" filter="url(#texture)" opacity=".6"/>
+    <!-- canvas texture -->
+    <rect width="1600" height="1000" filter="url(#strokes)" opacity=".7"/>
+    <rect width="1600" height="1000" filter="url(#texture)" opacity=".5"/>
   </svg>
+  </div>
 </div>
 
 <!-- ============================ chrome ============================ -->
@@ -528,6 +577,7 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 </div>
 <div class="pill" id="topctl">
   <span id="clock">—</span>
+  <button class="cbtn" id="mSky" title="Change wallpaper" aria-label="Change wallpaper">◐</button>
   <button class="cbtn" id="mAbout" title="About this site" aria-label="About">✳</button>
 </div>
 <button id="tidy"><span>Tidy Up</span><span class="go">⌂</span></button>
@@ -1006,6 +1056,17 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
   /* ---------- chrome ---------- */
   document.getElementById("mAbout").addEventListener("click", () => openWin("about"));
   document.getElementById("tidy").addEventListener("click", () => Object.keys(wins).forEach(closeWin));
+
+  /* wallpaper toggle: alpenglow painting <-> Japanese gradients */
+  const desk = document.getElementById("desktop");
+  let jpSky = false;
+  try { jpSky = localStorage.getItem("ethanos-wp") === "jp"; } catch(_){}
+  desk.classList.toggle("jp", jpSky);
+  document.getElementById("mSky").addEventListener("click", () => {
+    jpSky = !jpSky;
+    desk.classList.toggle("jp", jpSky);
+    try { localStorage.setItem("ethanos-wp", jpSky ? "jp" : "alp"); } catch(_){}
+  });
 
   /* ---------- clock ---------- */
   const clock = document.getElementById("clock");
