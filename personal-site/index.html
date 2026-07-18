@@ -4,282 +4,378 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ethan Driskill</title>
-<meta name="description" content="Ethan Driskill — personal site. A little OS of my own.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='6' y='6' width='88' height='88' rx='18' fill='%23fbfaf7' stroke='%2326404e' stroke-width='6'/><rect x='22' y='40' width='56' height='38' rx='6' fill='%233e8e6c'/></svg>">
+<meta name="description" content="Ethan Driskill — personal site. A little map of my own.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='26' fill='%23D9EA5A'/><path d='M28 66 44 40l10 14 8-10 12 22z' fill='%232B2B26'/></svg>">
 <style>
 /* ============================================================
-   EthanOS — a quiet twist on old Windows, over a watercolor sea
+   EthanOS — trip-planner treatment: cream cards, mono labels,
+   lime CTAs, map-pin icons over an alpine scene.
    Single-file static site. Swap the PLACEHOLDER content below.
    ============================================================ */
 
 :root{
-  --paper:#fbfaf7;
-  --ink:#26404e;
-  --ink-soft:#6d7f89;
-  --line:#26404e;
-  --green:#3e8e6c;
-  --green-dark:#2e6b52;
-  --green-soft:#e4efe9;
-  --titlebar:#2e6076;
-  --font-ui:Tahoma,-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
-  --font-serif:Georgia,"Times New Roman",serif;
-  --menubar-h:30px;
-  --r-win:8px;
-  --r-btn:5px;
-  --shadow-win:5px 6px 0 rgba(38,64,78,.14);
+  --cream:#F2F0EA;
+  --cream-2:#E8E5DC;
+  --cream-3:#DFDCD2;
+  --ink:#2B2B26;
+  --ink-soft:#7C7B72;
+  --line:rgba(43,43,38,.10);
+  --lime:#D9EA5A;
+  --lime-deep:#C6DA3F;
+  --coral:#F0645C;
+  --purple:#9B7BF3;
+  --green:#5FA463;
+  --font-sans:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Arial,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --r-card:18px;
+  --r-ctl:9px;
+  --shadow-card:0 24px 60px rgba(35,40,30,.28), 0 4px 14px rgba(35,40,30,.12);
+  --shadow-pill:0 10px 30px rgba(35,40,30,.22);
 }
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
 body{
-  font-family:var(--font-ui);
+  font-family:var(--font-sans);
   font-size:13.5px;
   color:var(--ink);
   user-select:none;
-  background:#dcebee;
+  background:#c9d6d8;
 }
-::selection{background:rgba(62,142,108,.25)}
+::selection{background:rgba(217,234,90,.5)}
+
+.mono{font-family:var(--font-mono);letter-spacing:.08em}
+
+/* the "::" label prefix */
+.dd::before{
+  content:"";display:inline-block;width:7px;height:7px;margin-right:8px;
+  background:
+    radial-gradient(circle 1.6px at 1.6px 1.6px, currentColor 1.5px, transparent 1.6px),
+    radial-gradient(circle 1.6px at 5.6px 1.6px, currentColor 1.5px, transparent 1.6px),
+    radial-gradient(circle 1.6px at 1.6px 5.6px, currentColor 1.5px, transparent 1.6px),
+    radial-gradient(circle 1.6px at 5.6px 5.6px, currentColor 1.5px, transparent 1.6px);
+  vertical-align:0;
+}
 
 /* ============================================================
-   wallpaper — watercolor ocean
+   wallpaper — layered alpine scene
    ============================================================ */
 #desktop{position:fixed;inset:0;overflow:hidden}
 #desktop svg{width:100%;height:100%;display:block}
+/* Want the photoreal look? Replace the SVG with:
+   #desktop{background:url(mountains.jpg) center/cover} */
 
 /* ============================================================
-   menu bar
+   floating chrome pills
    ============================================================ */
-#menubar{
-  position:fixed;top:0;left:0;right:0;height:var(--menubar-h);z-index:5000;
-  display:flex;align-items:center;gap:2px;
-  padding:0 12px;
-  font-size:13px;
-  color:var(--ink);
-  background:var(--paper);
-  border-bottom:1.5px solid var(--line);
+.pill{
+  position:fixed;z-index:5000;
+  display:flex;align-items:center;gap:10px;
+  background:var(--cream);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:var(--shadow-pill);
+  padding:8px 14px;
 }
-#menubar .m{padding:0 10px;line-height:calc(var(--menubar-h) - 2px);cursor:default;white-space:nowrap;border-radius:var(--r-btn)}
-#menubar .m.name{font-weight:bold}
-#menubar .m:hover{background:var(--green-soft)}
-#menubar .spacer{flex:1}
-#clock{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink-soft)}
+#brand{top:14px;left:14px}
+#brand .mark{
+  width:24px;height:24px;border-radius:8px;flex:0 0 24px;
+  background:#fff;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;line-height:1;
+}
+#brand .who{font-size:13px;font-weight:600}
+#topctl{top:14px;right:14px;padding:6px}
+#topctl .cbtn{
+  width:28px;height:28px;border-radius:var(--r-ctl);
+  background:var(--cream-2);border:1px solid var(--line);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--ink);font-size:12px;
+}
+#topctl .cbtn:hover{background:var(--cream-3)}
+#clock{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.08em;color:var(--ink-soft);padding:0 6px;font-variant-numeric:tabular-nums}
+
+/* bottom-center dark action pill */
+#tidy{
+  position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:5000;
+  display:flex;align-items:center;gap:9px;
+  background:var(--ink);color:var(--cream);
+  border:none;border-radius:20px;
+  padding:9px 18px;cursor:pointer;
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  box-shadow:var(--shadow-pill);
+}
+#tidy:hover{background:#3a3a33}
+#tidy .go{
+  width:16px;height:16px;border-radius:50%;background:var(--lime);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--ink);font-size:9px;
+}
+
+/* dock — minimized windows, cream pills above the dark pill */
+#dock{
+  position:fixed;left:50%;bottom:62px;transform:translateX(-50%);
+  z-index:4500;
+  display:flex;align-items:center;gap:8px;
+  transition:opacity .2s, transform .2s;
+}
+#dock:empty{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(12px)}
+.dockitem{
+  display:flex;align-items:center;gap:8px;
+  background:var(--cream);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow-pill);
+  padding:6px 12px 6px 6px;cursor:pointer;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink);
+  text-transform:uppercase;
+}
+.dockitem:hover{background:#fff}
+.dockitem .tile{width:26px;height:26px;border-radius:8px;box-shadow:none}
+.dockitem .tile svg{width:14px;height:14px}
 
 /* ============================================================
-   desktop icons — scattered, draggable
+   desktop icons — map pins, scattered + draggable
    ============================================================ */
-#icons{position:absolute;inset:var(--menubar-h) 0 0 0;pointer-events:none}
+#icons{position:absolute;inset:0;pointer-events:none}
 .dicon{
   pointer-events:auto;
-  width:88px;
-  display:flex;flex-direction:column;align-items:center;gap:6px;
-  padding:8px 4px;
+  width:96px;
+  display:flex;flex-direction:column;align-items:center;
   border:none;background:none;cursor:pointer;
-  font-family:var(--font-ui);
   position:absolute;
   touch-action:none;
 }
 .dicon.dragging{cursor:grabbing;z-index:50}
 .tile{
-  width:48px;height:48px;border-radius:9px;
-  background:var(--paper);
-  border:1.5px solid var(--line);
+  width:46px;height:46px;border-radius:15px;
+  background:var(--cream);
+  border:1px solid rgba(43,43,38,.14);
   display:flex;align-items:center;justify-content:center;
-  box-shadow:3px 3px 0 rgba(38,64,78,.14);
-  transition:transform .08s;
+  box-shadow:0 8px 20px rgba(35,40,30,.3);
+  transition:transform .1s;
 }
-.dicon:hover .tile{background:#fff}
-.dicon:active .tile{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(38,64,78,.14)}
-.tile svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.dicon:hover .tile{transform:scale(1.07)}
+.dicon:active .tile{transform:scale(.96)}
+.tile svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+/* pin color variants (icon strokes flip to cream on solid pins) */
+.pin-lime   .tile{background:var(--lime)}
+.pin-coral  .tile{background:var(--coral)}
+.pin-coral  .tile svg{stroke:#fff}
+.pin-purple .tile{background:var(--purple)}
+.pin-purple .tile svg{stroke:#fff}
+.pin-dark   .tile{background:var(--ink)}
+.pin-dark   .tile svg{stroke:var(--lime)}
+.dicon .stem{
+  width:3px;height:15px;border-radius:2px;
+  background:rgba(43,43,38,.55);
+}
+.pin-lime .stem{background:rgba(198,218,63,.9)}
+.pin-coral .stem{background:rgba(240,100,92,.9)}
+.pin-purple .stem{background:rgba(155,123,243,.9)}
 .dicon .lbl{
-  font-size:11.5px;line-height:1.3;text-align:center;color:var(--ink);
-  background:rgba(251,250,247,.85);
-  padding:2px 8px;border-radius:6px;
+  margin-top:6px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink);
+  background:rgba(242,240,234,.92);
+  border:1px solid var(--line);
+  padding:4px 9px;border-radius:8px;
+  white-space:nowrap;
 }
-.dicon.open .lbl{background:var(--green);color:#fff}
+.dicon.open .lbl{background:var(--ink);color:var(--lime);border-color:var(--ink)}
 
 /* ============================================================
-   windows — old Windows anatomy, softened
+   windows — cream cards
    ============================================================ */
 .window{
   position:absolute;
   min-width:320px;min-height:200px;
-  background:var(--paper);
-  border:1.5px solid var(--line);
-  border-radius:var(--r-win);
-  box-shadow:var(--shadow-win);
+  background:var(--cream);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  box-shadow:var(--shadow-card);
   display:none;flex-direction:column;overflow:hidden;
   z-index:100;
 }
-.window.open{display:flex;animation:winIn .16s ease-out}
+.window.open{display:flex;animation:winIn .18s ease-out}
 .window.closing{animation:winOut .13s ease-in forwards}
 .window.minimizing{animation:winMin .18s ease-in forwards}
-@keyframes winIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-@keyframes winOut{to{opacity:0;transform:translateY(8px)}}
+@keyframes winIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes winOut{to{opacity:0;transform:translateY(8px) scale(.98)}}
 @keyframes winMin{to{opacity:0;transform:translateY(40vh) scale(.7)}}
 
 .window.maxed{
-  top:var(--menubar-h) !important;left:0 !important;
-  width:100% !important;height:calc(100% - var(--menubar-h)) !important;
-  border-radius:0;box-shadow:none;
+  top:8px !important;left:8px !important;
+  width:calc(100% - 16px) !important;height:calc(100% - 16px) !important;
 }
+/* a maximized window owns the screen — floating chrome steps aside */
+.pill,#tidy,#dock{transition:opacity .2s}
+body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;pointer-events:none}
 
-/* title bar — solid bar, title left, green buttons right */
+/* header — mono title left, gray square controls right */
 .titlebar{
-  height:34px;flex:0 0 34px;
+  height:46px;flex:0 0 46px;
   display:flex;align-items:center;gap:8px;
-  padding:0 8px 0 14px;
-  background:var(--titlebar);
+  padding:0 10px 0 18px;
   cursor:default;touch-action:none;
 }
-.window:not(.active) .titlebar{background:#8da4b0}
 .titlebar .tname{
   flex:1;
-  color:#fff;font-weight:bold;font-size:12.5px;
+  font-family:var(--font-mono);font-size:11.5px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   pointer-events:none;
 }
+.window:not(.active) .titlebar .tname{color:#a9a89e}
 .lights{display:flex;gap:5px}
 .lights button{
-  width:22px;height:19px;border-radius:var(--r-btn);
-  background:var(--green);
-  border:1px solid var(--green-dark);
+  width:26px;height:26px;border-radius:var(--r-ctl);
+  background:var(--cream-2);
+  border:1px solid var(--line);
   cursor:pointer;padding:0;
   display:flex;align-items:center;justify-content:center;
-  color:#fff;font-size:11px;line-height:1;font-family:var(--font-ui);
+  color:var(--ink);font-size:11px;line-height:1;
 }
-.lights button:hover{background:#4aa07c}
-.lights button:active{background:var(--green-dark)}
-.window:not(.active) .lights button{background:#a9bbc4;border-color:#8da4b0}
+.lights button:hover{background:var(--cream-3)}
+.lights .cl:hover{background:var(--coral);color:#fff}
+.lights button:active{transform:scale(.94)}
+.window:not(.active) .lights button{color:#a9a89e}
 
 /* body */
 .wbody{flex:1;overflow:auto;overscroll-behavior:contain;cursor:auto}
-.wbody.padded{padding:20px 24px 24px}
-.wbody h2{font-size:19px;font-weight:bold;margin:0 0 4px;color:var(--ink)}
-.wbody h3{
-  font-size:11px;font-weight:bold;margin:20px 0 9px;color:var(--ink-soft);
-  text-transform:uppercase;letter-spacing:.12em;
+.wbody.padded{padding:8px 22px 24px}
+.wbody h2{
+  font-size:26px;font-weight:300;letter-spacing:-.01em;margin:0 0 2px;color:var(--ink);
+  text-wrap:balance;line-height:1.15;
 }
-.wbody p{line-height:1.6;margin:0 0 10px;color:#37505d}
+.wbody h2 b,.wbody h2 strong{font-weight:600}
+.wbody h3{
+  font-family:var(--font-mono);
+  font-size:10.5px;font-weight:600;margin:22px 0 10px;color:var(--ink);
+  text-transform:uppercase;letter-spacing:.14em;
+}
+.wbody p{line-height:1.6;margin:0 0 10px;color:#4a4a42}
 .wbody .sub{color:var(--ink-soft);font-size:13px;margin-bottom:6px}
-.wbody a{color:var(--green-dark)}
-.muted{color:#93a2aa;font-size:12px}
+.wbody a{color:var(--ink);text-decoration-color:var(--lime-deep);text-decoration-thickness:2px}
+.muted{color:#a09f95;font-size:12px}
+
+/* mono data pill (like "230FT 01.4") */
+.data{
+  display:inline-block;
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;
+  background:var(--cream-2);border:1px solid var(--line);
+  padding:3px 9px;border-radius:7px;color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
 
 /* resize handle */
 .grip{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none}
 .window.maxed .grip{display:none}
 
 /* ---------- buttons ---------- */
-.btnp,.wbody a.btnp{
-  font-family:var(--font-ui);font-size:13px;font-weight:bold;color:#fff;
-  background:var(--green);
-  border:1px solid var(--green-dark);border-radius:var(--r-btn);
-  padding:8px 18px;cursor:pointer;text-decoration:none;
+.btnp,.wbody a.btnp{ /* lime CTA with dark arrow chip */
+  font-family:var(--font-mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink);
+  background:var(--lime);
+  border:1px solid rgba(43,43,38,.18);border-radius:14px;
+  padding:10px 12px 10px 18px;cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:12px;
+}
+.btnp:hover{background:var(--lime-deep)}
+.btnp .go{
+  width:22px;height:22px;border-radius:50%;background:var(--ink);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--lime);font-size:11px;flex:0 0 22px;
+}
+.btns,.wbody a.btns{ /* dark pill */
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--cream);
+  background:var(--ink);
+  border:1px solid var(--ink);border-radius:14px;
+  padding:10px 18px;cursor:pointer;text-decoration:none;
   display:inline-flex;align-items:center;gap:8px;
 }
-.btnp:hover{background:#4aa07c}
-.btnp:active{background:var(--green-dark)}
-.btns,.wbody a.btns{
-  font-family:var(--font-ui);font-size:13px;color:var(--ink);
-  background:var(--paper);
-  border:1.5px solid var(--line);border-radius:var(--r-btn);
-  padding:8px 16px;cursor:pointer;text-decoration:none;
-  display:inline-flex;align-items:center;gap:8px;
-}
-.btns:hover{background:var(--green-soft)}
-.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.btns:hover{background:#3a3a33}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
 
-/* ---------- resume ---------- */
-.job{margin-bottom:16px}
-.job .row1{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
-.job .role{font-weight:bold;font-size:13.5px}
-.job .when{color:var(--ink-soft);font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.job .org{font-size:12.5px;margin:1px 0 6px;color:var(--green-dark);font-weight:bold}
-.job ul{margin:0 0 0 18px}
-.job li{line-height:1.55;margin-bottom:3px;color:#37505d}
+/* ---------- tag chips (skills, socials) ---------- */
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{
-  font-size:12px;padding:4px 12px;border-radius:12px;
-  border:1px solid #c3d2d9;color:#4a616e;background:#fff;
+  display:inline-flex;align-items:center;gap:7px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 11px 5px 6px;border-radius:9px;
+  border:1px solid var(--line);color:var(--ink);background:var(--cream-2);
 }
+.chip .sq{
+  width:16px;height:16px;border-radius:5px;flex:0 0 16px;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.chip .sq svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.sq-lime{background:var(--lime)} .sq-lime svg{stroke:var(--ink) !important}
+.sq-purple{background:var(--purple)}
+.sq-green{background:var(--green)}
+.sq-coral{background:var(--coral)}
+.sq-dark{background:var(--ink)} .sq-dark svg{stroke:var(--lime) !important}
+
+/* ---------- resume ---------- */
+.job{margin-bottom:18px}
+.job .row1{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.job .role{font-weight:600;font-size:14px}
+.job .org{font-size:12.5px;margin:2px 0 7px;color:var(--ink-soft)}
+.job ul{margin:0 0 0 18px}
+.job li{line-height:1.55;margin-bottom:3px;color:#4a4a42}
 
 /* ---------- projects ---------- */
 .plist{display:flex;flex-direction:column}
 .pitem{
-  display:flex;align-items:baseline;gap:12px;
-  padding:13px 2px;
-  border-bottom:1px solid #e2e8ea;
+  display:flex;align-items:center;gap:14px;
+  padding:14px 4px;
+  border-bottom:1px solid var(--line);
+  text-decoration:none;color:var(--ink);
 }
 .pitem:last-child{border-bottom:none}
-.pitem .pt{font-weight:bold;font-size:13.5px;white-space:nowrap}
-.pitem .pd{flex:1;font-size:12.5px;color:#5c707b;line-height:1.5;min-width:160px}
+.pitem .idx{font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--ink-soft);flex:0 0 26px}
+.pitem .pt{font-weight:600;font-size:14px;white-space:nowrap}
+.pitem .pd{flex:1;font-size:12.5px;color:#6a695f;line-height:1.5;min-width:150px}
 .pitem .pl{font-size:12.5px;white-space:nowrap}
 
 /* ---------- letter ---------- */
-.letter{font-family:var(--font-serif);font-size:15px;line-height:1.8;color:#34434d;max-width:500px;margin:0 auto}
-.letter .date{color:#93a2aa;font-style:italic;margin-bottom:18px;font-size:13px}
-.letter p{margin-bottom:14px}
-.letter .sig{font-style:italic;font-size:17px;margin-top:22px}
+.letter{max-width:480px;margin:0 auto;padding-top:6px}
+.letter p{font-size:15px;line-height:1.75;font-weight:300;color:#3c3c35;margin-bottom:14px}
+.letter .sig{font-weight:600;font-size:15px;margin-top:20px}
 
 /* ---------- photo ---------- */
-.photo-body{display:flex;align-items:center;justify-content:center;padding:26px}
-.photocard{
-  background:#fff;padding:10px;border-radius:9px;
-  border:1.5px solid var(--line);
-  box-shadow:4px 4px 0 rgba(38,64,78,.12);
+.photo-body{display:flex;align-items:center;justify-content:center;padding:10px 24px 26px}
+.photocard{background:#fff;padding:9px;border-radius:14px;border:1px solid var(--line)}
+.photocard img,.photocard svg{display:block;width:min(270px,58vw);height:auto;border-radius:9px;background:var(--cream-2)}
+.photocard .cap{
+  text-align:center;padding:9px 0 3px;
+  font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
 }
-.photocard img,.photocard svg{display:block;width:min(270px,58vw);height:auto;border-radius:5px;background:#e6edf0}
-.photocard .cap{text-align:center;padding:9px 0 3px;font-size:12px;color:#93a2aa}
 
 /* ---------- contact ---------- */
-.socialgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px;margin-top:8px}
+.socialgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:9px;margin-top:8px}
 .social,.wbody a.social{
   display:flex;align-items:center;gap:11px;
-  padding:11px 13px;text-decoration:none;color:var(--ink);
-  background:#fff;
-  border:1.5px solid var(--line);border-radius:var(--r-btn);
-  font-size:13px;font-weight:bold;
+  padding:10px 12px;text-decoration:none;color:var(--ink);
+  background:var(--cream-2);
+  border:1px solid var(--line);border-radius:12px;
+  font-size:13px;font-weight:600;
 }
-.social:hover{background:var(--green-soft)}
-.social .ic{width:20px;height:20px;flex:0 0 20px}
-.social .ic svg{width:100%;height:100%;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.social small{display:block;font-weight:normal;color:var(--ink-soft);font-size:11px}
+.social:hover{background:#fff}
+.social .sq{width:26px;height:26px;border-radius:8px;flex:0 0 26px;display:flex;align-items:center;justify-content:center}
+.social .sq svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.social small{display:block;font-weight:400;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-soft)}
 
-/* ---------- work ---------- */
+/* ---------- work — the lime feature card ---------- */
 .workcard{
-  border:1.5px solid var(--line);border-radius:var(--r-win);padding:20px;
-  background:#fff;
+  border-radius:14px;padding:20px;
+  background:var(--lime);
   display:flex;gap:16px;align-items:center;flex-wrap:wrap;
 }
 .workcard .winfo{flex:1;min-width:180px}
-
-/* ============================================================
-   dock — minimized windows
-   ============================================================ */
-#dock{
-  position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
-  z-index:4500;
-  display:flex;align-items:center;gap:7px;
-  padding:7px 9px;
-  border-radius:10px;
-  background:var(--paper);
-  border:1.5px solid var(--line);
-  box-shadow:var(--shadow-win);
-  transition:opacity .2s, transform .2s;
-}
-#dock:empty{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(16px)}
-.dockitem{
-  border:none;background:none;cursor:pointer;padding:0;
-  position:relative;
-}
-.dockitem .tile{width:38px;height:38px;border-radius:7px;box-shadow:none}
-.dockitem .tile svg{width:20px;height:20px}
-.dockitem:hover .tile{background:var(--green-soft)}
-.dockitem::after{
-  content:attr(data-tip);position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);
-  background:var(--ink);color:#fff;font-size:11px;padding:3px 9px;border-radius:5px;
-  white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;
-}
-.dockitem:hover::after{opacity:1}
+.workcard .wt{font-size:22px;font-weight:300;line-height:1.2}
+.workcard .wt b{font-weight:600}
+.workcard p{color:#4c4f2c}
 
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;transition-duration:.01ms !important}
@@ -289,29 +385,29 @@ body{
    mobile
    ============================================================ */
 @media (max-width:700px){
-  #menubar .m:not(.name){display:none}
   #icons{
     inset:auto 0 0 0;
     display:flex;flex-direction:row;flex-wrap:wrap;align-content:flex-start;justify-content:center;
-    gap:4px 8px;padding:12px 8px calc(16px + env(safe-area-inset-bottom));
-    background:linear-gradient(transparent,rgba(251,250,247,.9) 40%);
+    gap:6px 10px;padding:14px 8px calc(64px + env(safe-area-inset-bottom));
+    background:linear-gradient(transparent,rgba(242,240,234,.94) 45%);
   }
   .dicon{
-    width:76px;padding:6px 2px;
+    width:80px;
     position:relative;left:auto !important;top:auto !important;
   }
-  .tile{width:44px;height:44px}
-  .dicon .lbl{background:none}
+  .dicon .stem{display:none}
+  .dicon .lbl{margin-top:5px;background:none;border:none}
   .window{
-    top:var(--menubar-h) !important;left:0 !important;
-    width:100% !important;height:calc(100% - var(--menubar-h)) !important;
-    min-width:0;border:none;border-radius:0;box-shadow:none;
+    top:60px !important;left:6px !important;
+    width:calc(100% - 12px) !important;height:calc(100% - 66px) !important;
+    min-width:0;
   }
   .grip{display:none}
   .lights .mx{display:none}
-  #dock{bottom:auto;top:calc(var(--menubar-h) + 10px)}
-  #dock:empty{transform:translateX(-50%) translateY(-16px)}
-  .wbody.padded{padding:18px}
+  #tidy{bottom:calc(10px + env(safe-area-inset-bottom))}
+  #dock{bottom:auto;top:60px;flex-direction:column}
+  #dock:empty{transform:translateX(-50%) translateY(-12px)}
+  .wbody.padded{padding:4px 16px 18px}
 }
 </style>
 </head>
@@ -320,103 +416,152 @@ body{
 <div id="desktop" aria-hidden="true">
   <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
     <defs>
-      <!-- wobbly watercolor edges -->
-      <filter id="wc1" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="7" result="n"/>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="70"/>
-        <feGaussianBlur stdDeviation="0.6"/>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#c3d2d6"/>
+        <stop offset=".6" stop-color="#dde6e5"/>
+        <stop offset="1" stop-color="#e8ece7"/>
+      </linearGradient>
+      <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#93a7ab"/>
+        <stop offset="1" stop-color="#b4c3c3"/>
+      </linearGradient>
+      <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#6e8a74"/>
+        <stop offset="1" stop-color="#90a68e"/>
+      </linearGradient>
+      <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#4f7a54"/>
+        <stop offset=".55" stop-color="#5e8a5c"/>
+        <stop offset="1" stop-color="#7a9a6e"/>
+      </linearGradient>
+      <linearGradient id="fore" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#66905e"/>
+        <stop offset="1" stop-color="#8aa872"/>
+      </linearGradient>
+      <filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="4" seed="11" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="26"/>
       </filter>
-      <filter id="wc2" x="-20%" y="-20%" width="140%" height="140%">
-        <feTurbulence type="fractalNoise" baseFrequency="0.017" numOctaves="3" seed="31" result="n"/>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="55"/>
-        <feGaussianBlur stdDeviation="0.5"/>
+      <filter id="rough2" x="-10%" y="-10%" width="120%" height="120%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.016 0.04" numOctaves="4" seed="29" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="34"/>
       </filter>
-      <!-- pigment granulation -->
-      <filter id="grainy">
-        <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="4"/>
+      <filter id="cloud" x="-50%" y="-50%" width="200%" height="200%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.012" numOctaves="4" seed="8" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="90"/>
+        <feGaussianBlur stdDeviation="7"/>
+      </filter>
+      <filter id="texture">
+        <feTurbulence type="fractalNoise" baseFrequency="0.55" numOctaves="2" seed="5"/>
         <feColorMatrix type="saturate" values="0"/>
-        <feComponentTransfer><feFuncA type="linear" slope="0.06"/></feComponentTransfer>
+        <feComponentTransfer><feFuncA type="linear" slope="0.05"/></feComponentTransfer>
       </filter>
     </defs>
 
-    <!-- paper -->
-    <rect width="1600" height="1000" fill="#f6f4ee"/>
+    <!-- sky -->
+    <rect width="1600" height="1000" fill="url(#sky)"/>
 
-    <!-- sky wash -->
-    <g filter="url(#wc1)" opacity=".85">
-      <rect x="-60" y="-60" width="1720" height="420" fill="#dcebee"/>
+    <!-- far hazy ridge -->
+    <g filter="url(#rough)" opacity=".8">
+      <path d="M-40 560 240 380 420 470 640 330 830 450 1040 340 1260 460 1450 390 1640 480 1640 1040 -40 1040 Z" fill="url(#far)"/>
     </g>
-    <g filter="url(#wc2)" opacity=".5">
-      <ellipse cx="380" cy="120" rx="420" ry="110" fill="#cfe3e8"/>
-      <ellipse cx="1230" cy="200" rx="480" ry="120" fill="#d5e7ea"/>
-    </g>
-
-    <!-- sea washes, layered like pigment (multiply pools where they overlap) -->
-    <g style="mix-blend-mode:multiply">
-      <g filter="url(#wc1)" opacity=".9">
-        <rect x="-60" y="360" width="1720" height="700" fill="#9dc4d0"/>
-      </g>
-      <g filter="url(#wc2)" opacity=".8">
-        <rect x="-60" y="380" width="1720" height="180" fill="#5b93a8"/>
-      </g>
-      <g filter="url(#wc1)" opacity=".75">
-        <rect x="-60" y="365" width="1720" height="70" fill="#2e6076"/>
-      </g>
-      <g filter="url(#wc2)" opacity=".55">
-        <rect x="-60" y="640" width="1720" height="150" fill="#6fa5bb"/>
-      </g>
-      <g filter="url(#wc1)" opacity=".45">
-        <rect x="-60" y="850" width="1720" height="220" fill="#87b4c4"/>
-      </g>
+    <!-- snow caps on far ridge -->
+    <g filter="url(#rough)" opacity=".7">
+      <path d="M600 356 640 330 686 358 660 372 632 362 Z" fill="#eef2f0"/>
+      <path d="M1000 366 1040 340 1084 368 1052 380 1022 372 Z" fill="#eef2f0"/>
     </g>
 
-    <!-- paper showing through: wave light -->
-    <g filter="url(#wc2)" opacity=".5">
-      <ellipse cx="420"  cy="560" rx="260" ry="14" fill="#f6f4ee"/>
-      <ellipse cx="1150" cy="500" rx="300" ry="12" fill="#f6f4ee"/>
-      <ellipse cx="760"  cy="700" rx="330" ry="16" fill="#f6f4ee"/>
-      <ellipse cx="290"  cy="820" rx="240" ry="18" fill="#f6f4ee"/>
-      <ellipse cx="1320" cy="780" rx="280" ry="16" fill="#f6f4ee"/>
+    <!-- mid ridge -->
+    <g filter="url(#rough2)" opacity=".92">
+      <path d="M-40 660 180 520 400 610 620 470 900 620 1120 500 1340 610 1520 540 1640 600 1640 1040 -40 1040 Z" fill="url(#mid)"/>
     </g>
 
-    <!-- granulation over everything -->
-    <rect width="1600" height="1000" filter="url(#grainy)" opacity=".7"/>
+    <!-- near mountain (the big one) -->
+    <g filter="url(#rough)">
+      <path d="M-40 1040 -40 820 260 640 520 760 780 560 1030 720 1290 620 1520 760 1640 720 1640 1040 Z" fill="url(#near)"/>
+    </g>
+    <!-- rocky patches -->
+    <g filter="url(#rough2)" opacity=".28">
+      <path d="M700 640 780 560 870 650 810 690 740 672 Z" fill="#c9c2ae"/>
+      <path d="M1240 660 1290 620 1360 672 1310 700 Z" fill="#c9c2ae"/>
+      <path d="M300 700 360 660 430 716 366 740 Z" fill="#bdb6a4"/>
+    </g>
+    <!-- tree clusters -->
+    <g filter="url(#rough2)" opacity=".5">
+      <ellipse cx="420" cy="810" rx="180" ry="46" fill="#3c5f42"/>
+      <ellipse cx="1080" cy="840" rx="220" ry="52" fill="#3c5f42"/>
+      <ellipse cx="240" cy="920" rx="160" ry="40" fill="#456a49"/>
+    </g>
+    <!-- blossom cluster, a nod to the reference -->
+    <g filter="url(#rough2)" opacity=".55">
+      <ellipse cx="640" cy="760" rx="110" ry="30" fill="#d9b8c4"/>
+    </g>
+
+    <!-- foreground meadow -->
+    <g filter="url(#rough)">
+      <path d="M-40 1040 -40 930 320 880 720 940 1120 880 1470 940 1640 900 1640 1040 Z" fill="url(#fore)"/>
+    </g>
+
+    <!-- dashed trail -->
+    <path d="M820 980 C 860 880 780 800 850 720 C 910 650 1010 660 1050 590 C 1080 540 1060 480 1090 440"
+          fill="none" stroke="#f6f5ef" stroke-width="3.5" stroke-dasharray="2 14" stroke-linecap="round" opacity=".9"/>
+
+    <!-- clouds -->
+    <g filter="url(#cloud)" fill="#ffffff">
+      <ellipse cx="420" cy="200" rx="130" ry="34" opacity=".9"/>
+      <ellipse cx="500" cy="230" rx="90"  ry="26" opacity=".8"/>
+      <ellipse cx="1150" cy="480" rx="180" ry="44" opacity=".95"/>
+      <ellipse cx="1290" cy="530" rx="130" ry="36" opacity=".9"/>
+      <ellipse cx="1360" cy="440" rx="100" ry="30" opacity=".85"/>
+      <ellipse cx="150"  cy="620" rx="120" ry="30" opacity=".55"/>
+    </g>
+
+    <!-- grain -->
+    <rect width="1600" height="1000" filter="url(#texture)" opacity=".6"/>
   </svg>
 </div>
 
-<!-- ============================ menu bar ============================ -->
-<div id="menubar">
-  <span class="m name">EthanOS</span>
-  <span class="m" id="mAbout">About</span>
-  <span class="m" id="mCloseAll">Tidy Up</span>
-  <span class="spacer"></span>
-  <span id="clock">—</span>
+<!-- ============================ chrome ============================ -->
+<div class="pill" id="brand">
+  <span class="mark">✳</span>
+  <span class="who">Ethan Driskill</span>
 </div>
+<div class="pill" id="topctl">
+  <span id="clock">—</span>
+  <button class="cbtn" id="mAbout" title="About this site" aria-label="About">✳</button>
+</div>
+<button id="tidy"><span>Tidy Up</span><span class="go">⌂</span></button>
 
-<!-- ============================ desktop icons ============================ -->
+<!-- ============================ desktop icons (map pins) ============================ -->
 <div id="icons">
   <button class="dicon" data-win="letter">
     <span class="tile"><svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.5 7 12 13.5 20.5 7"/></svg></span>
-    <span class="lbl">A Letter</span>
+    <span class="stem"></span>
+    <span class="lbl">Letter</span>
   </button>
-  <button class="dicon" data-win="resume">
+  <button class="dicon pin-lime" data-win="resume">
     <span class="tile"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M10 12h6M10 15.5h6"/></svg></span>
+    <span class="stem"></span>
     <span class="lbl">Resume</span>
   </button>
-  <button class="dicon" data-win="projects">
+  <button class="dicon pin-coral" data-win="projects">
     <span class="tile"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
-    <span class="lbl">Side Projects</span>
+    <span class="stem"></span>
+    <span class="lbl">Projects</span>
   </button>
-  <button class="dicon" data-win="photo">
+  <button class="dicon pin-purple" data-win="photo">
     <span class="tile"><svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M4.5 17.5 10 12l4 4 3-3 2.5 2.5"/></svg></span>
+    <span class="stem"></span>
     <span class="lbl">Photo</span>
   </button>
-  <button class="dicon" data-win="work">
+  <button class="dicon pin-dark" data-win="work">
     <span class="tile"><svg viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="11" rx="2"/><path d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"/></svg></span>
+    <span class="stem"></span>
     <span class="lbl">Work</span>
   </button>
   <button class="dicon" data-win="contact">
     <span class="tile"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.6"/><path d="M15.6 12c0 2.4 1.1 3.6 2.4 3.6 1.2 0 2.5-1.1 2.5-3.6"/></svg></span>
+    <span class="stem"></span>
     <span class="lbl">Say Hi</span>
   </button>
 </div>
@@ -424,14 +569,14 @@ body{
 <!-- ============================ windows ============================ -->
 
 <!-- LETTER -->
-<section class="window" id="win-letter" data-title="A Letter From Me" data-w="540" data-h="520">
+<section class="window" id="win-letter" data-title="Letter" data-w="540" data-h="520">
   <div class="wbody padded">
     <div class="letter">
+      <h2>A letter,<br><b>from me to you</b></h2>
+      <p class="data" style="margin:10px 0 18px">EST. READ · 1 MIN</p>
       <!-- PLACEHOLDER: rewrite this letter in your own voice -->
-      <div class="date">Written from somewhere with decent coffee</div>
-      <p>Hi, I'm Ethan.</p>
-      <p>Thanks for wandering into my little corner of the internet. I kept this place simple on purpose — a few windows, a painted sea, nothing you have to figure out.</p>
-      <p>I like making things: software, side projects, and the occasional questionable idea that turns out better than expected. Poke around — my resume is here, some projects I'm proud of, and a few ways to reach me.</p>
+      <p>Hi, I'm Ethan. Thanks for wandering into my little corner of the internet.</p>
+      <p>I like making things: software, side projects, and the occasional questionable idea that turns out better than expected. Poke around the map — my resume is pinned here, some projects I'm proud of, and a few ways to reach me.</p>
       <p>If something here resonates, say hi. I read everything.</p>
       <p class="sig">— Ethan</p>
     </div>
@@ -439,15 +584,15 @@ body{
 </section>
 
 <!-- RESUME -->
-<section class="window" id="win-resume" data-title="Resume" data-w="620" data-h="560">
+<section class="window" id="win-resume" data-title="Resume" data-w="640" data-h="580">
   <div class="wbody padded">
-    <h2>Ethan Driskill</h2>
+    <h2>Ethan<br><b>Driskill</b></h2>
     <p class="sub"><!-- PLACEHOLDER: one-line title/location -->Builder of things · Your City, USA</p>
 
-    <h3>Experience</h3>
+    <h3 class="dd">Experience</h3>
     <!-- PLACEHOLDER: replace with your real experience -->
     <div class="job">
-      <div class="row1"><span class="role">Your Current Role</span><span class="when">2023 — Present</span></div>
+      <div class="row1"><span class="role">Your Current Role</span><span class="data">2023 — NOW</span></div>
       <div class="org">Company Name</div>
       <ul>
         <li>Something impressive you shipped, with a number in it.</li>
@@ -456,7 +601,7 @@ body{
       </ul>
     </div>
     <div class="job">
-      <div class="row1"><span class="role">Previous Role</span><span class="when">2020 — 2023</span></div>
+      <div class="row1"><span class="role">Previous Role</span><span class="data">2020 — 2023</span></div>
       <div class="org">Previous Company</div>
       <ul>
         <li>What you owned and how it went.</li>
@@ -464,47 +609,52 @@ body{
       </ul>
     </div>
 
-    <h3>Education</h3>
+    <h3 class="dd">Education</h3>
     <div class="job">
-      <div class="row1"><span class="role">Your Degree</span><span class="when">Year</span></div>
+      <div class="row1"><span class="role">Your Degree</span><span class="data">YEAR</span></div>
       <div class="org">Your University</div>
     </div>
 
-    <h3>Skills</h3>
+    <h3 class="dd">Skills</h3>
     <div class="chips">
       <!-- PLACEHOLDER: your actual skills -->
-      <span class="chip">Product</span><span class="chip">Design</span><span class="chip">TypeScript</span>
-      <span class="chip">React</span><span class="chip">Shipping fast</span><span class="chip">Coffee</span>
+      <span class="chip"><span class="sq sq-purple"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/></svg></span>Product</span>
+      <span class="chip"><span class="sq sq-lime"><svg viewBox="0 0 24 24"><path d="M4 20 12 4l8 16"/></svg></span>Design</span>
+      <span class="chip"><span class="sq sq-green"><svg viewBox="0 0 24 24"><path d="M8 4v16M16 4v16"/></svg></span>TypeScript</span>
+      <span class="chip"><span class="sq sq-coral"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/></svg></span>React</span>
+      <span class="chip"><span class="sq sq-dark"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>Shipping fast</span>
     </div>
 
     <div class="btnrow">
       <!-- PLACEHOLDER: point this at your real resume PDF -->
-      <a class="btnp" href="resume.pdf" download>Download PDF</a>
-      <a class="btns" href="mailto:ethandriskill@gmail.com?subject=Saw%20your%20resume">Email me about it</a>
+      <a class="btnp" href="resume.pdf" download><span>Download PDF</span><span class="go">→</span></a>
+      <a class="btns" href="mailto:ethandriskill@gmail.com?subject=Saw%20your%20resume">Email me</a>
     </div>
   </div>
 </section>
 
 <!-- PROJECTS -->
-<section class="window" id="win-projects" data-title="Side Projects" data-w="580" data-h="400">
+<section class="window" id="win-projects" data-title="Side Projects" data-w="600" data-h="420">
   <div class="wbody padded">
-    <h2>Side Projects</h2>
-    <p class="sub" style="margin-bottom:10px">Things I build when I should probably be sleeping.</p>
-    <div class="plist">
+    <h2>Things I build<br><b>after hours</b></h2>
+    <div class="plist" style="margin-top:14px">
       <div class="pitem">
+        <span class="idx">01</span>
         <span class="pt">BigCal</span>
         <span class="pd">Your entire year on one page — Google &amp; Microsoft calendars in a single yearly view.</span>
         <span class="pl"><a href="#" target="_blank" rel="noopener">Visit →</a></span> <!-- PLACEHOLDER: BigCal URL -->
       </div>
       <div class="pitem">
+        <span class="idx">02</span>
         <span class="pt">SkiFree Tribute</span>
         <span class="pd">A love letter to the greatest game ever bundled with an OS. Watch out for the yeti.</span>
         <span class="pl"><a href="#" target="_blank" rel="noopener">Play →</a></span> <!-- PLACEHOLDER: SkiFree URL -->
       </div>
       <div class="pitem">
+        <span class="idx">03</span>
         <span class="pt">Next Thing</span>
         <span class="pd"><!-- PLACEHOLDER: your next project -->Currently cooking. Ask me about it and I'll talk your ear off.</span>
-        <span class="pl"><span class="muted">In progress…</span></span>
+        <span class="pl"><span class="data">IN PROGRESS</span></span>
       </div>
     </div>
   </div>
@@ -516,56 +666,56 @@ body{
     <figure class="photocard">
       <!-- PLACEHOLDER: replace this SVG with <img src="me.jpg" alt="Ethan Driskill"> -->
       <svg viewBox="0 0 280 300" role="img" aria-label="Placeholder portrait">
-        <rect width="280" height="300" fill="#e6edf0"/>
-        <circle cx="140" cy="115" r="58" fill="#c3d2d9"/>
-        <path d="M50 300c8-72 52-98 90-98s82 26 90 98z" fill="#c3d2d9"/>
-        <text x="140" y="285" text-anchor="middle" font-family="Tahoma" font-size="13" fill="#6d7f89">your photo goes here</text>
+        <rect width="280" height="300" fill="#E8E5DC"/>
+        <circle cx="140" cy="115" r="58" fill="#cfccc0"/>
+        <path d="M50 300c8-72 52-98 90-98s82 26 90 98z" fill="#cfccc0"/>
+        <text x="140" y="285" text-anchor="middle" font-family="Menlo,monospace" font-size="11" letter-spacing="2" fill="#8a897e">YOUR PHOTO HERE</text>
       </svg>
-      <figcaption class="cap">me, probably mid-idea</figcaption>
+      <figcaption class="cap">me · probably mid-idea</figcaption>
     </figure>
   </div>
 </section>
 
 <!-- WORK -->
-<section class="window" id="win-work" data-title="Work" data-w="500" data-h="310">
+<section class="window" id="win-work" data-title="Work" data-w="520" data-h="330">
   <div class="wbody padded">
-    <h2>Where I Work</h2>
-    <p class="sub" style="margin-bottom:14px">The day job (that I actually like).</p>
-    <div class="workcard">
+    <h2>The<br><b>day job</b></h2>
+    <div class="workcard" style="margin-top:16px">
       <div class="winfo">
         <!-- PLACEHOLDER: your company + blurb + URL -->
-        <p style="margin-bottom:4px"><strong>Your Company</strong></p>
-        <p class="muted" style="font-size:12.5px;margin:0">One line on what the company does and what you do there.</p>
+        <div class="wt">Your<br><b>Company</b></div>
+        <p class="muted" style="font-size:12.5px;margin:8px 0 0;color:#5c5f36">One line on what the company does and what you do there.</p>
       </div>
-      <a class="btnp" href="https://example.com" target="_blank" rel="noopener">Visit site ↗</a>
+      <a class="btns" href="https://example.com" target="_blank" rel="noopener">Visit site ↗</a>
     </div>
   </div>
 </section>
 
 <!-- CONTACT -->
-<section class="window" id="win-contact" data-title="Say Hi" data-w="470" data-h="420">
+<section class="window" id="win-contact" data-title="Say Hi" data-w="490" data-h="440">
   <div class="wbody padded">
-    <h2>Say Hi</h2>
-    <p class="sub" style="margin-bottom:14px">Inbox zero is a lie, but I do reply.</p>
-    <a class="btnp" href="mailto:ethandriskill@gmail.com" style="font-size:13.5px;padding:10px 22px">ethandriskill@gmail.com</a>
+    <h2>Inbox zero is a lie,<br><b>but I do reply</b></h2>
+    <div class="btnrow" style="margin-top:14px">
+      <a class="btnp" href="mailto:ethandriskill@gmail.com"><span>ethandriskill@gmail.com</span><span class="go">→</span></a>
+    </div>
 
-    <h3 style="margin-top:24px">Elsewhere</h3>
+    <h3 class="dd" style="margin-top:24px">Elsewhere</h3>
     <div class="socialgrid">
       <!-- PLACEHOLDER: swap # for your real profile URLs (GitHub is real) -->
       <a class="social" href="https://github.com/ethandriskill" target="_blank" rel="noopener">
-        <span class="ic"><svg viewBox="0 0 24 24"><path d="M15.5 21v-3.2c0-.9-.3-1.5-.7-1.8 2.3-.3 4.7-1.1 4.7-5a3.9 3.9 0 0 0-1-2.7 3.6 3.6 0 0 0-.1-2.7s-.9-.3-2.9 1a10 10 0 0 0-5 0c-2-1.3-2.9-1-2.9-1a3.6 3.6 0 0 0-.1 2.7 3.9 3.9 0 0 0-1 2.7c0 3.9 2.4 4.7 4.7 5-.3.3-.6.8-.7 1.5v3.5"/><path d="M8.5 18.5c-2 .7-3.5 0-4.5-1.5"/></svg></span>
+        <span class="sq sq-dark"><svg viewBox="0 0 24 24"><path d="M15.5 21v-3.2c0-.9-.3-1.5-.7-1.8 2.3-.3 4.7-1.1 4.7-5a3.9 3.9 0 0 0-1-2.7 3.6 3.6 0 0 0-.1-2.7s-.9-.3-2.9 1a10 10 0 0 0-5 0c-2-1.3-2.9-1-2.9-1a3.6 3.6 0 0 0-.1 2.7 3.9 3.9 0 0 0-1 2.7c0 3.9 2.4 4.7 4.7 5-.3.3-.6.8-.7 1.5v3.5"/><path d="M8.5 18.5c-2 .7-3.5 0-4.5-1.5"/></svg></span>
         <span>GitHub<small>@ethandriskill</small></span>
       </a>
       <a class="social" href="#" target="_blank" rel="noopener">
-        <span class="ic"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 10.5V17M8 7.5v.1M12 17v-4a2.2 2.2 0 0 1 4.4 0V17"/></svg></span>
+        <span class="sq sq-green"><svg viewBox="0 0 24 24"><path d="M8 10.5V17M8 7.5v.1M12 17v-4a2.2 2.2 0 0 1 4.4 0V17"/></svg></span>
         <span>LinkedIn<small>/in/yourname</small></span>
       </a>
       <a class="social" href="#" target="_blank" rel="noopener">
-        <span class="ic"><svg viewBox="0 0 24 24"><path d="M4.5 4.5 19.5 19.5M19.2 4.5 4.8 19.5" stroke-width="1.9"/></svg></span>
+        <span class="sq sq-coral"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></span>
         <span>X / Twitter<small>@yourhandle</small></span>
       </a>
       <a class="social" href="#" target="_blank" rel="noopener">
-        <span class="ic"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><circle cx="12" cy="12" r="3.8"/><path d="M17 7v.1"/></svg></span>
+        <span class="sq sq-purple"><svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="4"/><circle cx="12" cy="12" r="3.4"/></svg></span>
         <span>Instagram<small>@yourhandle</small></span>
       </a>
     </div>
@@ -573,13 +723,13 @@ body{
 </section>
 
 <!-- ABOUT THIS SITE -->
-<section class="window" id="win-about" data-title="About EthanOS" data-w="360" data-h="280">
+<section class="window" id="win-about" data-title="About" data-w="380" data-h="300">
   <div class="wbody padded" style="text-align:center">
-    <div style="width:48px;height:48px;border-radius:10px;margin:12px auto 14px;background:var(--green);border:1px solid var(--green-dark)"></div>
-    <h2>EthanOS</h2>
-    <p class="sub">Old windows, new water</p>
-    <p style="font-size:12.5px">One HTML file, zero frameworks, one painted sea.</p>
-    <p class="muted">© 2026 Ethan Driskill</p>
+    <div style="width:52px;height:52px;border-radius:16px;margin:14px auto 14px;background:var(--lime);border:1px solid rgba(43,43,38,.18);display:flex;align-items:center;justify-content:center;font-size:22px">✳</div>
+    <h2 style="font-size:22px">Ethan<b>OS</b></h2>
+    <p class="sub" style="margin-top:4px">A little map of my own</p>
+    <p style="font-size:12.5px">One HTML file, zero frameworks.</p>
+    <p class="muted" style="margin-top:8px">© 2026 Ethan Driskill</p>
   </div>
 </section>
 
@@ -595,7 +745,7 @@ body{
 
   const dock = document.getElementById("dock");
   const isMobile = () => matchMedia("(max-width:700px)").matches;
-  const MENUBAR = 30;
+  const TOP = 12;
 
   let zTop = 100;
   const wins = {};   // id -> {el, icon, minimized, prevRect}
@@ -608,7 +758,7 @@ body{
     const bar = document.createElement("div");
     bar.className = "titlebar";
     bar.innerHTML =
-      '<span class="tname">' + title + '</span>' +
+      '<span class="tname dd">' + title + '</span>' +
       '<div class="lights">' +
         '<button class="mn" title="Minimize" aria-label="Minimize">─</button>' +
         '<button class="mx" title="Maximize" aria-label="Maximize">▢</button>' +
@@ -640,9 +790,9 @@ body{
       const move = ev => {
         let x = r.left + (ev.clientX - startX);
         let y = r.top  + (ev.clientY - startY);
-        /* window buttons sit top-right — keep some titlebar on screen both sides */
-        x = Math.min(Math.max(x, -r.width + 120), innerWidth - 120);
-        y = Math.min(Math.max(y, MENUBAR), innerHeight - 40);
+        /* window controls sit top-right — keep some header on screen both sides */
+        x = Math.min(Math.max(x, -r.width + 130), innerWidth - 130);
+        y = Math.min(Math.max(y, TOP), innerHeight - 50);
         el.style.left = x + "px";
         el.style.top  = y + "px";
       };
@@ -674,6 +824,20 @@ body{
     });
   });
 
+  /* run cleanup on animationend, with a timeout fallback in case the event never fires.
+     Guarded on the transitional class so a quick reopen cancels stale cleanup. */
+  function settle(el, cls, fn){
+    let done = false;
+    const run = () => {
+      if (done) return;
+      done = true;
+      el.removeEventListener("animationend", run);
+      if (el.classList.contains(cls)) fn();
+    };
+    el.addEventListener("animationend", run, {once:true});
+    setTimeout(run, 300);
+  }
+
   /* ---------- core ops ---------- */
   function focusWin(id){
     const w = wins[id];
@@ -693,14 +857,14 @@ body{
       const dw = parseInt(w.el.dataset.w || 520);
       const dh = parseInt(w.el.dataset.h || 420);
       const width  = Math.min(dw, innerWidth - 40);
-      const height = Math.min(dh, innerHeight - MENUBAR - 60);
+      const height = Math.min(dh, innerHeight - TOP - 60);
       w.el.style.width  = width + "px";
       w.el.style.height = height + "px";
       /* windows land wherever — no tidy cascade */
       const maxX = Math.max(16, innerWidth  - width  - 16);
-      const maxY = Math.max(MENUBAR + 8, innerHeight - height - 24);
+      const maxY = Math.max(TOP + 8, innerHeight - height - 24);
       w.el.style.left = Math.round(16 + Math.random() * (maxX - 16)) + "px";
-      w.el.style.top  = Math.round(MENUBAR + 8 + Math.random() * (maxY - MENUBAR - 8)) + "px";
+      w.el.style.top  = Math.round(TOP + 8 + Math.random() * (maxY - TOP - 8)) + "px";
     }
     w.el.classList.remove("closing","minimizing");
     w.el.classList.add("open");
@@ -714,10 +878,10 @@ body{
     w.minimized = false;
     removeDockItem(id);
     w.el.classList.add("closing");
-    w.el.addEventListener("animationend", function h(){
+    settle(w.el, "closing", () => {
       w.el.classList.remove("open","closing","maxed");
-      w.el.removeEventListener("animationend", h);
-    }, {once:true});
+      refreshMaxedMode();
+    });
     w.icon && w.icon.classList.remove("open");
   }
 
@@ -726,10 +890,7 @@ body{
     if (!w || !w.el.classList.contains("open") || w.minimized) return;
     w.minimized = true;
     w.el.classList.add("minimizing");
-    w.el.addEventListener("animationend", function h(){
-      w.el.classList.remove("open","minimizing");
-      w.el.removeEventListener("animationend", h);
-    }, {once:true});
+    settle(w.el, "minimizing", () => w.el.classList.remove("open","minimizing"));
     addDockItem(id);
   }
 
@@ -741,6 +902,11 @@ body{
     w.el.classList.remove("minimizing");
     w.el.classList.add("open");
     focusWin(id);
+  }
+
+  function refreshMaxedMode(){
+    const any = Object.values(wins).some(o => o.el.classList.contains("maxed") && o.el.classList.contains("open"));
+    document.body.classList.toggle("maxed-mode", any);
   }
 
   function toggleMax(id){
@@ -755,6 +921,7 @@ body{
       w.prevRect = {left:w.el.style.left, top:w.el.style.top, width:w.el.style.width, height:w.el.style.height};
       w.el.classList.add("maxed");
     }
+    refreshMaxedMode();
     focusWin(id);
   }
 
@@ -765,9 +932,9 @@ body{
     const b = document.createElement("button");
     b.className = "dockitem";
     b.dataset.win = id;
-    b.dataset.tip = w.el.dataset.title || id;
     const tile = w.icon && w.icon.querySelector(".tile");
     if (tile) b.appendChild(tile.cloneNode(true));
+    b.appendChild(document.createTextNode(w.el.dataset.title || id));
     b.addEventListener("click", () => restoreWin(id));
     dock.appendChild(b);
   }
@@ -776,15 +943,15 @@ body{
     if (b) b.remove();
   }
 
-  /* ---------- desktop icons: scattered, draggable ---------- */
+  /* ---------- desktop icons: scattered map pins, draggable ---------- */
   /* loose home regions (fractions of the desktop) — jittered every load */
   const scatterMap = {
-    letter:   {x:.07, y:.14},
-    contact:  {x:.30, y:.07},
-    resume:   {x:.80, y:.10},
-    projects: {x:.13, y:.62},
-    photo:    {x:.87, y:.50},
-    work:     {x:.55, y:.74},
+    letter:   {x:.07, y:.16},
+    contact:  {x:.30, y:.08},
+    resume:   {x:.80, y:.12},
+    projects: {x:.13, y:.60},
+    photo:    {x:.87, y:.48},
+    work:     {x:.55, y:.68},
   };
   function scatterIcons(){
     if (isMobile()) return;
@@ -792,8 +959,8 @@ body{
       if (btn.dataset.placed) return;   /* don't un-drag what the visitor moved */
       const home = scatterMap[btn.dataset.win] || {x:Math.random(), y:Math.random()};
       const jx = (Math.random() - .5) * .07, jy = (Math.random() - .5) * .07;
-      const x = Math.min(Math.max((home.x + jx) * innerWidth,  6), innerWidth  - 96);
-      const y = Math.min(Math.max((home.y + jy) * (innerHeight - MENUBAR), 6), innerHeight - MENUBAR - 110);
+      const x = Math.min(Math.max((home.x + jx) * innerWidth,  6), innerWidth  - 102);
+      const y = Math.min(Math.max((home.y + jy) * innerHeight, 60), innerHeight - 140);
       btn.style.left = Math.round(x) + "px";
       btn.style.top  = Math.round(y) + "px";
     });
@@ -814,8 +981,8 @@ body{
         dragged = true;
         btn.classList.add("dragging");
         btn.dataset.placed = "1";
-        btn.style.left = Math.min(Math.max(ox + dx, 2), innerWidth  - 92) + "px";
-        btn.style.top  = Math.min(Math.max(oy + dy, 2), innerHeight - MENUBAR - 100) + "px";
+        btn.style.left = Math.min(Math.max(ox + dx, 2), innerWidth  - 98) + "px";
+        btn.style.top  = Math.min(Math.max(oy + dy, 2), innerHeight - 130) + "px";
       };
       const up = () => {
         btn.classList.remove("dragging");
@@ -836,9 +1003,9 @@ body{
     });
   });
 
-  /* ---------- menu bar ---------- */
+  /* ---------- chrome ---------- */
   document.getElementById("mAbout").addEventListener("click", () => openWin("about"));
-  document.getElementById("mCloseAll").addEventListener("click", () => Object.keys(wins).forEach(closeWin));
+  document.getElementById("tidy").addEventListener("click", () => Object.keys(wins).forEach(closeWin));
 
   /* ---------- clock ---------- */
   const clock = document.getElementById("clock");
@@ -846,7 +1013,7 @@ body{
     const d = new Date();
     const day  = d.toLocaleDateString([], {weekday:"short"});
     const time = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
-    clock.textContent = isMobile() ? time : (day + " " + time);
+    clock.textContent = (isMobile() ? time : (day + " " + time)).toUpperCase();
   }
   tick(); setInterval(tick, 15000);
 
@@ -863,16 +1030,16 @@ body{
     scatterIcons();   /* places any icon that hasn't been positioned yet */
     if (!isMobile()){
       document.querySelectorAll(".dicon").forEach(btn => {
-        if (btn.offsetLeft > innerWidth - 92)  btn.style.left = (innerWidth - 96) + "px";
-        if (btn.offsetTop  > innerHeight - MENUBAR - 100) btn.style.top = (innerHeight - MENUBAR - 110) + "px";
+        if (btn.offsetLeft > innerWidth - 98)  btn.style.left = (innerWidth - 102) + "px";
+        if (btn.offsetTop  > innerHeight - 130) btn.style.top = (innerHeight - 140) + "px";
       });
     }
     Object.values(wins).forEach(w => {
       if (!w.el.classList.contains("open") || isMobile() || w.el.classList.contains("maxed")) return;
       const r = w.el.getBoundingClientRect();
-      if (r.left > innerWidth - 120)  w.el.style.left = (innerWidth - Math.min(r.width, innerWidth) + 10) + "px";
+      if (r.left > innerWidth - 130)  w.el.style.left = (innerWidth - Math.min(r.width, innerWidth) + 10) + "px";
       if (r.top  > innerHeight - 60) w.el.style.top  = (innerHeight - 120) + "px";
-      if (r.top < MENUBAR) w.el.style.top = MENUBAR + "px";
+      if (r.top < TOP) w.el.style.top = TOP + "px";
     });
   });
 
