@@ -15,27 +15,29 @@
    ============================================================ */
 
 :root{
-  --paper:#DBD7D0;
-  --card:#FBFAF7;
-  --cream:#FBFAF7;
-  --cream-2:#EFEDE6;
-  --cream-3:#E4E2DA;
-  --ink:#1E1E1C;
-  --ink-soft:#8B887F;
-  --line:#E7E4DC;
-  --red:#E4574C;
-  --blue:#5B7BE8;
-  --yellow:#D6E85B;
-  --coral:#F2A386;
+  --paper:#F4A400;
+  --grid:rgba(155,88,0,.32);
+  --card:#FBF2DC;
+  --cream:#FBF2DC;
+  --cream-2:#F1E5C6;
+  --cream-3:#E6D7B0;
+  --ink:#171512;
+  --ink-soft:#7C6A4A;
+  --line:#171512;
+  --red:#D93400;
+  --blue:#2F7D46;
+  --yellow:#FFC53D;
+  --coral:#D93400;
   --purple:#7A6FF0;
-  --green:#9BC53D;
-  --amber:#A9662B;
+  --green:#2F7D46;
+  --amber:#C33B00;
   --font-sans:"Inter",-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Arial,sans-serif;
   --font-mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --r-card:16px;
-  --r-ctl:8px;
-  --shadow-card:0 18px 44px rgba(45,40,28,.18), 0 3px 10px rgba(45,40,28,.08);
-  --shadow-pill:0 8px 22px rgba(45,40,28,.15);
+  --font-disp:Georgia,"Iowan Old Style","Times New Roman",serif;
+  --r-card:8px;
+  --r-ctl:4px;
+  --shadow-card:7px 8px 0 rgba(105,55,0,.28);
+  --shadow-pill:4px 4px 0 rgba(105,55,0,.25);
 }
 
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -54,13 +56,10 @@ body{
 
 /* the "::" label prefix */
 .dd::before{
-  content:"";display:inline-block;width:7px;height:7px;margin-right:8px;
-  background:
-    radial-gradient(circle 1.6px at 1.6px 1.6px, currentColor 1.5px, transparent 1.6px),
-    radial-gradient(circle 1.6px at 5.6px 1.6px, currentColor 1.5px, transparent 1.6px),
-    radial-gradient(circle 1.6px at 1.6px 5.6px, currentColor 1.5px, transparent 1.6px),
-    radial-gradient(circle 1.6px at 5.6px 5.6px, currentColor 1.5px, transparent 1.6px);
-  vertical-align:0;
+  content:"";display:inline-block;width:6px;height:6px;margin-right:8px;
+  background:currentColor;
+  transform:rotate(45deg);
+  vertical-align:1px;
 }
 
 /* ============================================================
@@ -88,37 +87,30 @@ body{
     linear-gradient(180deg,transparent 30%,rgba(255,255,255,.16) 46%,transparent 60%),
     linear-gradient(180deg,transparent 62%,rgba(51,56,110,.18) 82%,transparent 96%);
 }
-/* halftone paper */
+/* gold graph paper */
 #wp-alp{
   background:
-    radial-gradient(rgba(32,30,25,.16) 1px, transparent 1.3px),
-    radial-gradient(rgba(32,30,25,.09) 1px, transparent 1.4px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    radial-gradient(rgba(120,60,0,.10) 1px, transparent 1.4px),
     var(--paper);
-  background-size:7px 7px, 23px 23px;
-  background-position:0 0, 4px 9px;
+  background-size:30px 30px, 30px 30px, 5px 5px, auto;
 }
-#wp-alp::before{ /* denser dot patches, like the collage */
+#wp-alp::before{ /* print vignette */
   content:"";position:absolute;inset:0;
-  background:radial-gradient(rgba(32,30,25,.2) 1.1px, transparent 1.5px);
-  background-size:5px 5px;
-  -webkit-mask-image:radial-gradient(380px 240px at 12% 16%, #000, transparent 70%),
-    radial-gradient(460px 280px at 90% 70%, #000, transparent 70%),
-    radial-gradient(320px 220px at 42% 98%, #000, transparent 70%);
-  mask-image:radial-gradient(380px 240px at 12% 16%, #000, transparent 70%),
-    radial-gradient(460px 280px at 90% 70%, #000, transparent 70%),
-    radial-gradient(320px 220px at 42% 98%, #000, transparent 70%);
+  background:radial-gradient(120% 100% at 50% 45%, transparent 55%, rgba(140,70,0,.20));
 }
-/* desktop garnish */
-.decor{position:absolute;pointer-events:none;z-index:1}
-.decor-px{left:-26px;bottom:15%;width:180px;height:auto;transform:rotate(-3deg);border-radius:12px;box-shadow:var(--shadow-pill)}
-.tag-here{
-  left:35%;top:60%;
-  display:flex;align-items:center;gap:7px;
-  background:var(--card);border-radius:8px;padding:5px 11px;
-  font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);
-  box-shadow:var(--shadow-pill);
+/* the diamond label — clicks open About */
+#label{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-53%);
+  width:min(56vmin,480px);height:min(56vmin,480px);
+  z-index:2;cursor:pointer;border:none;background:none;padding:0;
+  filter:drop-shadow(7px 8px 0 rgba(105,55,0,.28));
+  transition:transform .12s;
 }
-.tag-here i{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 0 2.5px #fff}
+#label:hover{transform:translate(-50%,-53%) scale(1.015)}
+#label svg{width:100%;height:100%;display:block}
+@media (max-width:700px){#label{width:84vw;height:84vw}}
 
 /* ============================================================
    floating chrome pills
@@ -127,23 +119,23 @@ body{
   position:fixed;z-index:5000;
   display:flex;align-items:center;gap:10px;
   background:var(--cream);
-  border:none;
-  border-radius:12px;
+  border:1.5px solid var(--line);
+  border-radius:8px;
   box-shadow:var(--shadow-pill);
-  padding:8px 13px;
+  padding:7px 12px;
 }
 #brand{top:14px;left:14px}
 #brand .mark{
-  width:24px;height:24px;border-radius:7px;flex:0 0 24px;
-  background:var(--yellow);border:none;
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;line-height:1;
+  width:17px;height:17px;border-radius:3px;flex:0 0 17px;margin:3px 4px 3px 3px;
+  background:var(--red);border:1px solid var(--line);
+  transform:rotate(45deg);
+  font-size:0;line-height:1;
 }
 #brand .who{font-size:13px;font-weight:600}
 #topctl{top:14px;right:14px;padding:6px}
 #topctl .cbtn{
   width:28px;height:28px;border-radius:var(--r-ctl);
-  background:var(--cream-2);border:none;
+  background:var(--card);border:1px solid var(--line);
   cursor:pointer;display:flex;align-items:center;justify-content:center;
   color:var(--ink);font-size:12px;
 }
@@ -154,18 +146,19 @@ body{
 #tidy{
   position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:5000;
   display:flex;align-items:center;gap:9px;
-  background:#121210;color:#F5F3EC;
-  border:none;border-radius:12px;
+  background:var(--red);color:#FBF2DC;
+  border:1.5px solid var(--line);border-radius:8px;
   padding:10px 16px;cursor:pointer;
   font-family:var(--font-mono);font-size:11px;letter-spacing:.03em;font-weight:600;
   box-shadow:var(--shadow-pill);
 }
-#tidy:hover{background:#2e2e2e}
+#tidy:hover{background:#B82C00}
 #tidy .go{
-  width:18px;height:18px;border-radius:6px;background:var(--amber);
+  width:15px;height:15px;border-radius:2px;background:var(--yellow);
   display:inline-flex;align-items:center;justify-content:center;
-  color:#fff;font-size:9px;
+  color:var(--ink);font-size:9px;transform:rotate(45deg);
 }
+#tidy .go > *{transform:rotate(-45deg)}
 
 /* dock — minimized windows, cream pills above the dark pill */
 #dock{
@@ -177,7 +170,7 @@ body{
 #dock:empty{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(12px)}
 .dockitem{
   display:flex;align-items:center;gap:8px;
-  background:var(--card);border:none;border-radius:10px;
+  background:var(--card);border:1.5px solid var(--line);border-radius:6px;
   box-shadow:var(--shadow-pill);
   padding:6px 12px 6px 6px;cursor:pointer;
   font-family:var(--font-mono);font-size:10.5px;letter-spacing:.02em;color:var(--ink);
@@ -201,32 +194,36 @@ body{
 }
 .dicon.dragging{cursor:grabbing;z-index:50}
 .tile{
-  width:46px;height:46px;border-radius:14px;
-  background:#fff;
-  border:none;
+  width:44px;height:44px;border-radius:8px;
+  background:var(--card);
+  border:1.5px solid var(--line);
+  outline:1px solid var(--line);outline-offset:-4.5px;
   display:flex;align-items:center;justify-content:center;
-  box-shadow:0 7px 18px rgba(45,40,28,.22);
+  box-shadow:3px 3px 0 rgba(105,55,0,.28);
   transition:transform .1s;
+  transform:rotate(45deg);
+  margin:10px 0 11px;
 }
-.dicon:hover .tile{transform:scale(1.07)}
-.dicon:active .tile{transform:scale(.96)}
-.tile svg{width:34px;height:34px}
+.tile svg{transform:rotate(-45deg)}
+.dicon:hover .tile{transform:rotate(45deg) scale(1.08)}
+.dicon:active .tile{transform:rotate(45deg) scale(.95)}
+.tile svg{width:30px;height:30px}
 a.dicon{text-decoration:none}
 .dicon .stem{
-  width:2.5px;height:14px;border-radius:2px;
-  background:rgba(32,30,25,.5);
+  width:2.5px;height:13px;
+  background:var(--ink);
 }
 .dicon .lbl{
   margin-top:6px;
   font-family:var(--font-mono);font-size:9.5px;letter-spacing:.03em;
   text-transform:uppercase;color:var(--ink);font-weight:600;
   background:var(--card);
-  border:none;
-  padding:4px 10px;border-radius:8px;
-  box-shadow:0 3px 10px rgba(45,40,28,.14);
+  border:1px solid var(--line);
+  padding:4px 10px;border-radius:3px;
+  box-shadow:2px 2px 0 rgba(105,55,0,.22);
   white-space:nowrap;
 }
-.dicon.open .lbl{background:var(--ink);color:#fff}
+.dicon.open .lbl{background:var(--red);color:#FBF2DC;border-color:var(--line)}
 
 /* ============================================================
    windows — cream cards
@@ -235,7 +232,7 @@ a.dicon{text-decoration:none}
   position:absolute;
   min-width:280px;min-height:200px;
   background:var(--card);
-  border:none;
+  border:2px solid var(--line);
   border-radius:var(--r-card);
   box-shadow:var(--shadow-card);
   display:none;flex-direction:column;overflow:hidden;
@@ -261,53 +258,55 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
   height:44px;flex:0 0 44px;
   display:flex;align-items:center;gap:8px;
   padding:0 10px 0 16px;
+  border-bottom:1.5px solid var(--line);
   cursor:default;touch-action:none;
 }
 .titlebar .tname{
   flex:1;
-  font-family:var(--font-mono);font-size:11.5px;font-weight:700;
-  letter-spacing:.03em;text-transform:uppercase;
+  font-family:var(--font-disp);font-size:12.5px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;
   color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   pointer-events:none;
 }
-.window:not(.active) .titlebar .tname{color:#B7B4AA}
+.window:not(.active) .titlebar .tname{color:#B9A778}
 .lights{display:flex;gap:5px}
 .lights button{
-  width:25px;height:25px;border-radius:var(--r-ctl);
-  background:var(--cream-2);
-  border:none;
+  width:24px;height:24px;border-radius:var(--r-ctl);
+  background:var(--card);
+  border:1px solid var(--line);
   cursor:pointer;padding:0;
   display:flex;align-items:center;justify-content:center;
-  color:#57554E;font-size:11px;line-height:1;
+  color:var(--ink);font-size:11px;line-height:1;
 }
 .lights button:hover{background:var(--yellow);color:var(--ink)}
 .lights .cl:hover{background:var(--red);color:#fff}
 .lights button:active{transform:scale(.94)}
-.window:not(.active) .lights button{color:#B7B4AA}
+.window:not(.active) .lights button{color:#B9A778}
 
-/* dark card (the letter) */
-.window.dark{background:#121210}
-.window.dark .titlebar .tname{color:#9B988D}
-.window.dark .lights button{background:#26261F;color:#B7B4AA}
+/* green label card (the letter) — the bottle's green band */
+.window.dark{background:#2F7D46}
+.window.dark .titlebar .tname{color:#EFE6C4}
+.window.dark .lights button{background:#26663A;color:#D9E8C4;border-color:#173F24}
 .window.dark .lights .cl:hover{background:var(--red);color:#fff}
-.window.dark h2{color:#8B887F}
+.window.dark h2{color:#CFE3BC}
 .window.dark h2 b{color:var(--yellow)}
-.window.dark .wbody p{color:#C9C6BC}
+.window.dark .wbody p{color:#EFEACB}
 .window.dark .sig{color:#fff}
-.window.dark .data{background:#26261F;color:#D8D5CC}
-/* lime card (about) */
+.window.dark .data{background:#26663A;color:#EFEACB}
+/* gold card (about) */
 .window.limecard{background:var(--yellow)}
-.window.limecard .lights button{background:rgba(255,255,255,.55)}
+.window.limecard .lights button{background:rgba(255,255,255,.5)}
 
 /* body */
 .wbody{flex:1;overflow:auto;overscroll-behavior:contain;cursor:auto}
 .wbody.padded{padding:8px 22px 24px}
 .wbody h2{
-  font-size:25px;font-weight:650;letter-spacing:-.03em;margin:0 0 2px;color:var(--ink);
-  text-wrap:balance;line-height:1.14;
+  font-family:var(--font-disp);
+  font-size:24px;font-weight:700;letter-spacing:.01em;margin:0 0 2px;color:var(--ink);
+  text-wrap:balance;line-height:1.16;
 }
-.wbody h2 b,.wbody h2 strong{font-weight:650;color:var(--amber)}
+.wbody h2 b,.wbody h2 strong{font-weight:700;color:var(--red)}
 .wbody h3{
   font-family:var(--font-mono);
   font-size:10.5px;font-weight:600;margin:22px 0 10px;color:var(--ink);
@@ -315,15 +314,15 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 }
 .wbody p{line-height:1.6;margin:0 0 10px;color:#4a4a42}
 .wbody .sub{color:var(--ink-soft);font-size:13px;margin-bottom:6px}
-.wbody a{color:var(--blue);text-decoration-thickness:1.5px}
+.wbody a{color:var(--green);text-decoration-thickness:1.5px;font-weight:600}
 .muted{color:#a09f95;font-size:12px}
 
 /* mono data pill (like "230FT 01.4") */
 .data{
   display:inline-block;
   font-family:var(--font-mono);font-size:10.5px;letter-spacing:.03em;font-weight:600;
-  background:var(--cream-2);border:none;
-  padding:4px 9px;border-radius:6px;color:var(--ink);
+  background:var(--card);border:1px solid var(--line);
+  padding:3px 9px;border-radius:3px;color:var(--ink);
   font-variant-numeric:tabular-nums;
 }
 
@@ -332,9 +331,9 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 .wbody.embed iframe{flex:1;width:100%;border:0;background:#fff}
 .embedbar{
   flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;
-  padding:9px 14px;border-top:1px solid var(--line);font-size:12px;
+  padding:9px 14px;border-top:1.5px solid var(--line);font-size:12px;
 }
-.embedbar a{color:var(--blue)}
+.embedbar a{color:var(--green);font-weight:600}
 
 /* resize handle */
 .grip{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none}
@@ -343,30 +342,35 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 /* ---------- buttons ---------- */
 .btnp,.wbody a.btnp{ /* prompt-bar CTA with amber arrow chip */
   font-family:var(--font-sans);font-size:13.5px;font-weight:600;letter-spacing:-.01em;
-  color:var(--ink);
-  background:#fff;
-  border:none;border-radius:14px;
-  padding:9px 9px 9px 18px;cursor:pointer;text-decoration:none;
-  display:inline-flex;align-items:center;gap:14px;
-  box-shadow:0 7px 20px rgba(45,40,28,.16);
-  transition:transform .1s, box-shadow .1s;
+  color:#FBF2DC;
+  background:var(--red);
+  border:1.5px solid var(--line);border-radius:6px;
+  padding:9px 9px 9px 16px;cursor:pointer;text-decoration:none;
+  display:inline-flex;align-items:center;gap:12px;
+  box-shadow:3px 3px 0 rgba(105,55,0,.3);
+  transition:transform .08s, box-shadow .08s;
 }
-.btnp:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(45,40,28,.2)}
-.btnp:active{transform:none}
+.btnp:hover{background:#B82C00}
+.btnp:active{transform:translate(1px,1px);box-shadow:2px 2px 0 rgba(105,55,0,.3)}
 .btnp .go{
-  width:27px;height:27px;border-radius:9px;background:var(--amber);
+  width:22px;height:22px;border-radius:2px;background:var(--yellow);
   display:inline-flex;align-items:center;justify-content:center;
-  color:#fff;font-size:12px;flex:0 0 27px;
+  color:var(--ink);font-size:11px;flex:0 0 22px;
+  transform:rotate(45deg);
 }
+.btnp .go,.btnp .go *{line-height:1}
+.btnp .go{font-size:0}
+.btnp .go::before{content:"→";font-size:11px;transform:rotate(-45deg)}
 .btns,.wbody a.btns{ /* dark button */
   font-family:var(--font-mono);font-size:10.5px;letter-spacing:.05em;font-weight:600;
-  text-transform:uppercase;color:#F5F3EC;
-  background:#121210;
-  border:none;border-radius:11px;
+  text-transform:uppercase;color:#FBF2DC;
+  background:var(--green);
+  border:1.5px solid var(--line);border-radius:6px;
   padding:11px 16px;cursor:pointer;text-decoration:none;
   display:inline-flex;align-items:center;gap:8px;
+  box-shadow:3px 3px 0 rgba(105,55,0,.3);
 }
-.btns:hover{background:#2b2b26}
+.btns:hover{background:#26663A}
 .btnrow{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center}
 
 /* ---------- tag chips (skills, socials) ---------- */
@@ -374,8 +378,8 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 .chip{
   display:inline-flex;align-items:center;gap:7px;
   font-family:var(--font-mono);font-size:10px;letter-spacing:.02em;text-transform:uppercase;
-  padding:5px 11px 5px 6px;border-radius:8px;
-  border:none;color:var(--ink);background:var(--cream-2);
+  padding:5px 11px 5px 6px;border-radius:3px;
+  border:1px solid var(--line);color:var(--ink);background:var(--card);
 }
 .chip .sq{
   width:16px;height:16px;border-radius:5px;flex:0 0 16px;
@@ -383,7 +387,7 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 }
 .chip .sq svg{width:10px;height:10px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .sq-lime{background:var(--yellow)} .sq-lime svg{stroke:var(--ink) !important}
-.sq-purple{background:var(--purple)}
+.sq-purple{background:var(--yellow)} .sq-purple svg{stroke:var(--ink) !important}
 .sq-green{background:var(--green)}
 .sq-coral{background:var(--coral)}
 .sq-dark{background:var(--ink)} .sq-dark svg{stroke:var(--yellow) !important}
@@ -417,10 +421,10 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 
 /* ---------- photo ---------- */
 .photo-body{display:flex;align-items:center;justify-content:center;padding:10px 24px 26px}
-.photocard{background:#fff;padding:9px;border-radius:12px;border:none;box-shadow:0 10px 26px rgba(45,40,28,.16);position:relative}
-.phtag{position:absolute;top:18px;left:18px;display:flex;align-items:center;gap:6px;background:var(--card);border-radius:8px;padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);box-shadow:0 3px 10px rgba(0,0,0,.18)}
-.phtag i{width:7px;height:7px;border-radius:50%;background:var(--purple)}
-.photocard img,.photocard svg{display:block;width:min(270px,58vw);height:auto;border-radius:8px;background:var(--cream-2)}
+.photocard{background:var(--card);padding:9px;border-radius:5px;border:2px solid var(--line);box-shadow:5px 5px 0 rgba(105,55,0,.28);position:relative}
+.phtag{position:absolute;top:18px;left:18px;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:3px;padding:4px 10px;font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink);box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.phtag i{width:7px;height:7px;border-radius:1px;background:var(--red);transform:rotate(45deg)}
+.photocard img,.photocard svg{display:block;width:min(270px,58vw);height:auto;border-radius:2px;background:var(--cream-2)}
 .photocard .cap{
   text-align:center;padding:9px 0 3px;
   font-family:var(--font-mono);font-size:9.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-soft);
@@ -431,12 +435,12 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 .social,.wbody a.social{
   display:flex;align-items:center;gap:11px;
   padding:10px 12px;text-decoration:none;color:var(--ink);
-  background:var(--cream-2);
-  border:none;border-radius:11px;
+  background:var(--card);
+  border:1.5px solid var(--line);border-radius:5px;
   font-size:13px;font-weight:600;
 }
-.social:hover{background:#fff;box-shadow:0 5px 14px rgba(45,40,28,.12)}
-.social .sq{width:26px;height:26px;border-radius:8px;flex:0 0 26px;display:flex;align-items:center;justify-content:center}
+.social:hover{background:#fff;box-shadow:2px 2px 0 rgba(105,55,0,.22)}
+.social .sq{width:26px;height:26px;border-radius:3px;flex:0 0 26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line)}
 .social .sq svg{width:14px;height:14px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .social small{display:block;font-weight:400;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.01em;color:var(--ink-soft)}
 
@@ -482,13 +486,22 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
   <!-- alpenglow painting -->
   <div class="wp" id="wp-alp"></div>
 
-  <svg class="decor decor-px" viewBox="0 0 150 110" aria-hidden="true">
-    <defs><pattern id="px-d" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="#F2A386"/><rect width="2" height="2" fill="#6E9C4E"/><rect x="2" y="2" width="2" height="2" fill="#6E9C4E"/></pattern></defs>
-    <rect width="150" height="110" rx="10" fill="#F2A386"/>
-    <path d="M0 96H12V84h12V72h8V60h12V48h8V36h8v-8h8v8h8v12h12v12h12v12h12v8h12v8h12v8h14v14H0Z" fill="url(#px-d)" shape-rendering="crispEdges"/>
-    <path d="M52 36l8-8 8 8v4l-8-6-8 6Z" fill="#fff" opacity=".8" shape-rendering="crispEdges"/>
-  </svg>
-  <div class="decor tag-here" aria-hidden="true"><i></i>You&#8217;re here</div>
+  <button id="label" aria-label="About this site" title="About EthanOS">
+    <svg viewBox="0 0 400 400" role="img">
+      <defs>
+        <path id="arcT" d="M105 230 A 95 95 0 0 1 295 230" fill="none"/>
+        <path id="arcB" d="M113 258 A 130 130 0 0 0 287 258" fill="none"/>
+      </defs>
+      <path d="M200 14 386 200 200 386 14 200Z" fill="#FBF2DC" stroke="#171512" stroke-width="4"/>
+      <path d="M200 33 367 200 200 367 33 200Z" fill="none" stroke="#171512" stroke-width="1.8"/>
+      <text font-family="Georgia,serif" font-weight="bold" font-size="21" letter-spacing="4" fill="#171512" text-anchor="middle"><textPath href="#arcT" startOffset="50%">ETHAN DRISKILL</textPath></text>
+      <text x="200" y="177" font-family="Georgia,serif" font-size="11" letter-spacing="3" fill="#171512" text-anchor="middle">PERSONAL SITE</text>
+      <text x="200" y="180" font-family="Georgia,serif" font-size="8" fill="#171512" text-anchor="middle" opacity="0"> </text>
+      <text x="196" y="228" font-family="Georgia,serif" font-weight="bold" font-size="47" letter-spacing="1" fill="#171512" text-anchor="middle">ETHANOS<tspan font-size="13" dy="-26">®</tspan></text>
+      <text x="200" y="256" font-family="Georgia,serif" font-size="13" letter-spacing="5" fill="#171512" text-anchor="middle">BRAND</text>
+      <text font-family="Georgia,serif" font-weight="bold" font-size="13.5" letter-spacing="2.5" fill="#171512" text-anchor="middle"><textPath href="#arcB" startOffset="50%">MAKE COOL THINGS</textPath></text>
+    </svg>
+  </button>
 </div>
 
 <!-- ============================ chrome ============================ -->
@@ -727,7 +740,7 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 <!-- ABOUT THIS SITE -->
 <section class="window limecard" id="win-about" data-title="About" data-w="380" data-h="300">
   <div class="wbody padded" style="text-align:center">
-    <div style="width:52px;height:52px;border-radius:5px;margin:14px auto 14px;background:var(--purple);border:none;display:flex;align-items:center;justify-content:center;font-size:22px">✳</div>
+    <div style="width:52px;height:52px;border-radius:5px;margin:14px auto 14px;background:var(--red);border:1.5px solid var(--line);transform:rotate(45deg);display:flex;align-items:center;justify-content:center;font-size:22px">✳</div>
     <h2 style="font-size:22px">Ethan<b>OS</b></h2>
     <p class="sub" style="margin-top:4px">A little map of my own</p>
     <p style="font-size:12.5px">One HTML file, zero frameworks.</p>
@@ -1006,6 +1019,7 @@ body.maxed-mode .pill,body.maxed-mode #tidy,body.maxed-mode #dock{opacity:0;poin
 
   /* ---------- chrome ---------- */
   document.getElementById("mAbout").addEventListener("click", () => openWin("about"));
+  document.getElementById("label").addEventListener("click", () => openWin("about"));
   document.getElementById("tidy").addEventListener("click", () => Object.keys(wins).forEach(closeWin));
 
   /* wallpaper toggle: alpenglow painting <-> Japanese gradients */
